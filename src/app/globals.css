@@ -1,0 +1,34 @@
+@import url('https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --green: #0f6e56;
+  --green-mid: #1d9e75;
+  --green-light: #e1f5ee;
+  --amber: #ba7517;
+  --amber-light: #faeeda;
+  --gray: #5f5e5a;
+  --border: rgba(44,44,42,0.12);
+  --border-mid: rgba(44,44,42,0.22);
+  --bg: #f5f2eb;
+  --white: #ffffff;
+  --text: #2c2c2a;
+  --muted: #5f5e5a;
+  --radius: 10px;
+  --radius-lg: 14px;
+}
+
+html, body { height: 100%; }
+body { font-family: 'Georgia', serif; background: var(--bg); color: var(--text); }
+button { cursor: pointer; border: none; background: none; font-family: inherit; }
+input, textarea, select { font-family: inherit; font-size: 14px; }
+a { color: inherit; text-decoration: none; }
+
+/* Scrollbars */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(44,44,42,0.2); border-radius: 2px; }
+
+/* Utility */
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }

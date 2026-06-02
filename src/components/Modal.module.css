@@ -1,0 +1,39 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(44,44,42,0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 1rem;
+}
+
+.modal {
+  background: white;
+  border-radius: 14px;
+  padding: 1.5rem;
+  width: 100%;
+  max-width: 380px;
+  border: 0.5px solid var(--border-mid);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.25rem;
+}
+
+.header h3 {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.closeBtn {
+  color: var(--muted);
+  padding: 4px;
+  border-radius: 5px;
+  display: flex;
+}
+.closeBtn:hover { background: var(--bg); }

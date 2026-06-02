@@ -1,0 +1,104 @@
+.home {
+  max-width: 760px;
+}
+
+.hero {
+  border-radius: 16px;
+  overflow: hidden;
+  height: 180px;
+  position: relative;
+  background: #1a2e1f url('/verger-home.jpg') center / cover no-repeat;
+  margin-bottom: 2rem;
+}
+
+.heroOverlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, rgba(15,30,20,0.2), rgba(15,30,20,0.7));
+}
+
+.heroContent {
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 1.5rem;
+}
+
+.heroContent h1 {
+  font-size: 22px;
+  font-weight: 500;
+  color: white;
+  margin: 0 0 4px;
+}
+
+.heroContent p {
+  font-size: 13px;
+  color: rgba(255,255,255,0.75);
+}
+
+.sectionLabel {
+  font-size: 11px;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 12px;
+  font-family: sans-serif;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  margin-bottom: 1rem;
+}
+
+.card {
+  text-align: left;
+  padding: 14px 16px;
+  background: white;
+  border: 0.5px solid var(--border);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.card:hover { border-color: var(--green); }
+
+.card i {
+  font-size: 22px;
+  color: var(--green);
+  display: block;
+  margin-bottom: 8px;
+}
+
+.cardTitle {
+  font-size: 14px;
+  font-weight: 500;
+  display: block;
+  font-family: 'Georgia', serif;
+}
+
+.cardSub {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.list { display: flex; flex-direction: column; gap: 5px; }
+
+.listItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  padding: 10px 14px;
+  background: white;
+  border: 0.5px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 14px;
+  font-family: 'Georgia', serif;
+  transition: border-color 0.15s;
+}
+.listItem:hover { border-color: var(--green); }

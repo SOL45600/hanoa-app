@@ -1,0 +1,129 @@
+.page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  padding: 1rem;
+}
+
+.card {
+  background: white;
+  border-radius: 16px;
+  border: 0.5px solid var(--border);
+  width: 100%;
+  max-width: 380px;
+  overflow: hidden;
+}
+
+.hero {
+  height: 180px;
+  position: relative;
+  background: #1a2e1f url('/verger-login.jpg') center 30% / cover no-repeat;
+}
+
+.heroOverlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, rgba(15,30,20,0.3), rgba(15,30,20,0.65));
+}
+
+.heroContent {
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 1.5rem;
+}
+
+.logoBox {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+.logoBox i {
+  font-size: 20px;
+  color: white;
+}
+
+.heroContent h1 {
+  font-size: 22px;
+  font-weight: 500;
+  color: white;
+  letter-spacing: -0.02em;
+  margin: 0 0 2px;
+}
+
+.heroContent p {
+  font-size: 13px;
+  color: rgba(255,255,255,0.75);
+}
+
+.form {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.field label {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.field input {
+  padding: 9px 12px;
+  border: 0.5px solid var(--border-mid);
+  border-radius: 8px;
+  background: white;
+  font-size: 14px;
+  transition: border-color 0.15s;
+}
+
+.field input:focus {
+  outline: none;
+  border-color: var(--green);
+}
+
+.error {
+  font-size: 13px;
+  color: #d85a30;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: #faece7;
+  padding: 8px 10px;
+  border-radius: 7px;
+}
+
+.btn {
+  padding: 11px;
+  background: var(--green);
+  color: white;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: 'Georgia', serif;
+  transition: background 0.15s;
+}
+
+.btn:hover { background: #0d5d48; }
+.btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.hint {
+  font-size: 11px;
+  color: #aaa;
+  text-align: center;
+}
