@@ -1,7 +1,6 @@
 'use client'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { createClient } from '@/lib/supabase'
-import { useRouter } from 'next/navigation'
 import styles from './login.module.css'
 
 export default function LoginPage() {
@@ -11,16 +10,18 @@ export default function LoginPage() {
   const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
   const [resetLoading, setResetLoading] = useState(false)
-  const router = useRouter()
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
+    console.log('[Login] handleLogin called, email:', email)
     setError('')
     setSuccess('')
     setLoading(true)
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      console.log('[Login] calling signInWithPassword...')
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+      console.log('[Login] result:', { data, error })
       if (error) {
         setError(`Erreur (${error.status}): ${error.message}`)
         setLoading(false)
@@ -29,6 +30,7 @@ export default function LoginPage() {
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err)
+      console.error('[Login] exception:', msg)
       setError(`Erreur inattendue: ${msg}`)
       setLoading(false)
     }
