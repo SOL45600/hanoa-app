@@ -8,13 +8,16 @@ export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
+  const [resetLoading, setResetLoading] = useState(false)
   const router = useRouter()
   const supabase = createClient()
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    setSuccess('')
     setLoading(true)
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) {
@@ -23,6 +26,25 @@ export default function LoginPage() {
     } else {
       router.push('/')
       router.refresh()
+    }
+  }
+
+  const handleResetPassword = async () => {
+    if (!email) {
+      setError('Entrez votre adresse e-mail ci-dessus, puis cliquez sur "Mot de passe oublié".')
+      return
+    }
+    setError('')
+    setSuccess('')
+    setResetLoading(true)
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
+    })
+    setResetLoading(false)
+    if (error) {
+      setError('Erreur lors de l\'envoi. Vérifiez votre adresse e-mail.')
+    } else {
+      setSuccess('Email de réinitialisation envoyé ! Vérifiez votre boîte mail.')
     }
   }
 
@@ -55,11 +77,14 @@ export default function LoginPage() {
             />
           </div>
           {error && <p className={styles.error}><i className="ti ti-alert-circle" /> {error}</p>}
+          {success && <p className={styles.success}><i className="ti ti-circle-check" /> {success}</p>}
           <button type="submit" className={styles.btn} disabled={loading}>
             {loading ? 'Connexion…' : 'Accéder à la plateforme'}
           </button>
           <p className={styles.hint}>
-            Mot de passe oublié ? Contactez l'administrateur.
+            <button type="button" className={styles.linkBtn} onClick={handleResetPassword} disabled={resetLoading}>
+              {resetLoading ? 'Envoi en cours…' : 'Mot de passe oublié ?'}
+            </button>
           </p>
         </form>
       </div>

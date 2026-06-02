@@ -127,3 +127,26 @@
   color: #aaa;
   text-align: center;
 }
+
+.success {
+  font-size: 13px;
+  color: #1a7a4a;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: #e8f5ee;
+  padding: 8px 10px;
+  border-radius: 7px;
+}
+
+.linkBtn {
+  background: none;
+  border: none;
+  color: #aaa;
+  font-size: 11px;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+}
+.linkBtn:hover { color: var(--green); }
+.linkBtn:disabled { opacity: 0.6; cursor: not-allowed; }
