@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { createClient } from '@/lib/supabase'
+import { loginAction } from './actions'
 import styles from './login.module.css'
 
 export default function LoginPage() {
@@ -13,35 +13,10 @@ export default function LoginPage() {
     e.preventDefault()
     setError('')
     setLoading(true)
-
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    })
-
-    if (!res.ok) {
-      const data = await res.json()
-      setError(`Email ou mot de passe incorrect. (${data.error})`)
+    const errorMsg = await loginAction(email, password)
+    if (errorMsg) {
+      setError(errorMsg)
       setLoading(false)
-    } else {
-      window.location.href = '/'
-    }
-  }
-
-  const handleResetPassword = async () => {
-    if (!email) {
-      setError('Entrez votre adresse e-mail ci-dessus, puis cliquez sur "Mot de passe oublié".')
-      return
-    }
-    const supabase = createClient()
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
-    })
-    if (error) {
-      setError('Erreur lors de l\'envoi. Réessayez dans 1 heure (limite Supabase).')
-    } else {
-      setError('')
     }
   }
 
@@ -77,11 +52,6 @@ export default function LoginPage() {
           <button type="submit" className={styles.btn} disabled={loading}>
             {loading ? 'Connexion…' : 'Accéder à la plateforme'}
           </button>
-          <p className={styles.hint}>
-            <button type="button" className={styles.linkBtn} onClick={handleResetPassword}>
-              Mot de passe oublié ?
-            </button>
-          </p>
         </form>
       </div>
     </div>
