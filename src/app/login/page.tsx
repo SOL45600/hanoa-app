@@ -1,5 +1,5 @@
 'use client'
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import { createClient } from '@/lib/supabase'
 import styles from './login.module.css'
 
@@ -7,33 +7,25 @@ export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
-  const [resetLoading, setResetLoading] = useState(false)
-  const supabase = useMemo(() => createClient(), [])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log('[Login] handleLogin called, email:', email)
     setError('')
-    setSuccess('')
     setLoading(true)
-    try {
-      console.log('[Login] calling signInWithPassword...')
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-      console.log('[Login] result:', JSON.stringify({ error: error?.message, user: data?.user?.email }))
-      if (error) {
-        setError(`Erreur (${error.status}): ${error.message}`)
-        setLoading(false)
-      } else {
-        setSuccess('Connecté ! Redirection...')
-        setTimeout(() => { window.location.replace('/') }, 1500)
-      }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err)
-      console.error('[Login] exception:', msg)
-      setError(`Erreur inattendue: ${msg}`)
+
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    })
+
+    if (!res.ok) {
+      const data = await res.json()
+      setError(`Email ou mot de passe incorrect. (${data.error})`)
       setLoading(false)
+    } else {
+      window.location.href = '/'
     }
   }
 
@@ -42,17 +34,14 @@ export default function LoginPage() {
       setError('Entrez votre adresse e-mail ci-dessus, puis cliquez sur "Mot de passe oublié".')
       return
     }
-    setError('')
-    setSuccess('')
-    setResetLoading(true)
+    const supabase = createClient()
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
     })
-    setResetLoading(false)
     if (error) {
-      setError('Erreur lors de l\'envoi. Vérifiez votre adresse e-mail.')
+      setError('Erreur lors de l\'envoi. Réessayez dans 1 heure (limite Supabase).')
     } else {
-      setSuccess('Email de réinitialisation envoyé ! Vérifiez votre boîte mail.')
+      setError('')
     }
   }
 
@@ -85,13 +74,12 @@ export default function LoginPage() {
             />
           </div>
           {error && <p className={styles.error}><i className="ti ti-alert-circle" /> {error}</p>}
-          {success && <p className={styles.success}><i className="ti ti-circle-check" /> {success}</p>}
           <button type="submit" className={styles.btn} disabled={loading}>
             {loading ? 'Connexion…' : 'Accéder à la plateforme'}
           </button>
           <p className={styles.hint}>
-            <button type="button" className={styles.linkBtn} onClick={handleResetPassword} disabled={resetLoading}>
-              {resetLoading ? 'Envoi en cours…' : 'Mot de passe oublié ?'}
+            <button type="button" className={styles.linkBtn} onClick={handleResetPassword}>
+              Mot de passe oublié ?
             </button>
           </p>
         </form>
