@@ -19,12 +19,18 @@ export default function LoginPage() {
     setError('')
     setSuccess('')
     setLoading(true)
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) {
-      setError('Email ou mot de passe incorrect.')
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      if (error) {
+        setError(`Erreur (${error.status}): ${error.message}`)
+        setLoading(false)
+      } else {
+        window.location.href = '/'
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      setError(`Erreur inattendue: ${msg}`)
       setLoading(false)
-    } else {
-      window.location.href = '/'
     }
   }
 
