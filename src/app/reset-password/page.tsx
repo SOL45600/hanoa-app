@@ -19,6 +19,7 @@ export default function ResetPasswordPage() {
       if (session) setReady(true)
       else router.push('/login')
     })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
