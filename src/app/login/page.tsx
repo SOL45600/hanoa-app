@@ -1,6 +1,6 @@
 'use client'
-import { useState } from 'react'
-import { loginAction } from './actions'
+import { useState, useMemo } from 'react'
+import { createClient } from '@/lib/supabase'
 import styles from './login.module.css'
 
 export default function LoginPage() {
@@ -8,15 +8,18 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const supabase = useMemo(() => createClient(), [])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     setLoading(true)
-    const errorMsg = await loginAction(email, password)
-    if (errorMsg) {
-      setError(errorMsg)
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) {
+      setError(error.message)
       setLoading(false)
+    } else {
+      window.location.href = '/'
     }
   }
 
