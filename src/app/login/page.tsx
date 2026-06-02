@@ -21,12 +21,13 @@ export default function LoginPage() {
     try {
       console.log('[Login] calling signInWithPassword...')
       const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-      console.log('[Login] result:', { data, error })
+      console.log('[Login] result:', JSON.stringify({ error: error?.message, user: data?.user?.email }))
       if (error) {
         setError(`Erreur (${error.status}): ${error.message}`)
         setLoading(false)
       } else {
-        window.location.href = '/'
+        setSuccess('Connecté ! Redirection...')
+        setTimeout(() => { window.location.replace('/') }, 1500)
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err)
