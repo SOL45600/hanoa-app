@@ -1,4 +1,16 @@
-.docs { max-width: 680px; }
+.docs { max-width: 680px; position: relative; min-height: 120px; }
+
+.dragOver { background: var(--green-light); border-radius: 12px; }
+
+.dropOverlay {
+  position: absolute; inset: 0; z-index: 10;
+  background: rgba(225, 245, 238, 0.92);
+  border: 2px dashed var(--green); border-radius: 12px;
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 10px;
+  pointer-events: none;
+}
+.dropOverlay p { font-size: 16px; font-weight: 500; color: var(--green); }
 
 .uploadBtn {
   display: flex;

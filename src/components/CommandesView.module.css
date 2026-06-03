@@ -63,6 +63,14 @@
   transition: all 0.15s; background: #fafaf8; cursor: pointer;
 }
 .docMissing:hover { border-color: var(--green); color: var(--green); background: var(--green-light); border-style: solid; }
+
+/* Drag over a document slot */
+.slotDragging .docMissing,
+.slotDragging .docPresent {
+  border: 2px dashed var(--green) !important;
+  background: var(--green-light) !important;
+  color: var(--green) !important;
+}
 .docMissing i:first-child { font-size: 14px; flex-shrink: 0; }
 .docMissing span { flex: 1; text-align: left; }
 

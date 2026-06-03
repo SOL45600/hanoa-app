@@ -62,7 +62,9 @@ export default function DocsView({ sectionId, userId, profile, supabase }: Props
   const [uploading, setUploading] = useState(false)
   const [openComments, setOpenComments] = useState<Record<string, boolean>>({})
   const [preview, setPreview] = useState<Document | null>(null)
+  const [dragOver, setDragOver] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+  const dragCounter = useRef(0)
 
   useEffect(() => {
     setLoading(true)
@@ -74,8 +76,7 @@ export default function DocsView({ sectionId, userId, profile, supabase }: Props
       .then(({ data }) => { setDocs(data || []); setLoading(false) })
   }, [sectionId])
 
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || [])
+  const uploadFiles = async (files: File[]) => {
     if (!files.length) return
     setUploading(true)
     for (const file of files) {
@@ -101,6 +102,28 @@ export default function DocsView({ sectionId, userId, profile, supabase }: Props
     if (fileRef.current) fileRef.current.value = ''
   }
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    uploadFiles(Array.from(e.target.files || []))
+  }
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault(); e.stopPropagation()
+    dragCounter.current++
+    if (e.dataTransfer.items.length > 0) setDragOver(true)
+  }
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault(); e.stopPropagation()
+    dragCounter.current--
+    if (dragCounter.current === 0) setDragOver(false)
+  }
+  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation() }
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault(); e.stopPropagation()
+    setDragOver(false); dragCounter.current = 0
+    const files = Array.from(e.dataTransfer.files)
+    if (files.length) uploadFiles(files)
+  }
+
   const getDownloadUrl = async (path: string) => {
     const { data } = await supabase.storage.from('hanoa-files').createSignedUrl(path, 3600)
     if (data?.signedUrl) window.open(data.signedUrl, '_blank')
@@ -118,12 +141,24 @@ export default function DocsView({ sectionId, userId, profile, supabase }: Props
   }
 
   return (
-    <div className={styles.docs}>
-      <input type="file" ref={fileRef} style={{ display: 'none' }} multiple onChange={handleUpload}
+    <div
+      className={`${styles.docs} ${dragOver ? styles.dragOver : ''}`}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
+      {dragOver && (
+        <div className={styles.dropOverlay}>
+          <i className="ti ti-upload" style={{ fontSize: 40, color: 'var(--green)' }} />
+          <p>Déposez vos fichiers ici</p>
+        </div>
+      )}
+      <input type="file" ref={fileRef} style={{ display: 'none' }} multiple onChange={handleInputChange}
         accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.mp4,.mov,.txt" />
       <button onClick={() => fileRef.current?.click()} className={styles.uploadBtn} disabled={uploading}>
         <i className={`ti ${uploading ? 'ti-loader' : 'ti-upload'}`} style={{ fontSize: 18 }} />
-        {uploading ? 'Envoi en cours…' : 'Ajouter un document (PDF, Word, Excel, photo, vidéo…)'}
+        {uploading ? 'Envoi en cours…' : 'Ajouter ou glisser-déposer un document ici'}
       </button>
 
       {loading && <p className={styles.empty}>Chargement…</p>}

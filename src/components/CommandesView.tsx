@@ -141,7 +141,16 @@ function OrderCard({ order, onStatusChange, onUpload, onPreview, onDownload, use
         {DOC_TYPES.map(dt => {
           const att = getAttachment(dt.key)
           return (
-            <div key={dt.key} className={styles.docSlot}>
+            <div key={dt.key} className={styles.docSlot}
+              onDragOver={e => { e.preventDefault(); e.currentTarget.classList.add(styles.slotDragging) }}
+              onDragLeave={e => e.currentTarget.classList.remove(styles.slotDragging)}
+              onDrop={e => {
+                e.preventDefault()
+                e.currentTarget.classList.remove(styles.slotDragging)
+                const file = e.dataTransfer.files[0]
+                if (file) onUpload(order.id, dt.key, file)
+              }}
+            >
               {att ? (
                 <div className={styles.docPresent}>
                   <i className={`ti ${dt.icon}`} style={{ color: '#0f6e56' }} />
