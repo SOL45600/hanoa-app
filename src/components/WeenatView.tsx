@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
 import styles from './WeenatView.module.css'
+import WeenatMap from './WeenatMap'
 
 const LineChart = dynamic(() => import('recharts').then(m => m.LineChart), { ssr: false })
 const Line = dynamic(() => import('recharts').then(m => m.Line), { ssr: false })
@@ -80,6 +81,7 @@ function WeatherPage({ device, onBack }: { device: DeviceInfo; onBack: () => voi
   const [data, setData] = useState<DataPoint[]>([])
   const [loading, setLoading] = useState(true)
   const [days, setDays] = useState(30)
+  const st = getStatus(device.latest)
 
   useEffect(() => {
     setLoading(true)
@@ -89,12 +91,18 @@ function WeatherPage({ device, onBack }: { device: DeviceInfo; onBack: () => voi
   }, [device.id, days])
 
   const pts = data.map(d => ({ ...d, date: fmtTick(d.datetime) }))
-  const st = getStatus(device.latest)
+
+  // Computed stats
+  const rainTotal = data.reduce((s, d) => s + (d.RR ?? 0), 0)
+  const temps = data.map(d => d.T).filter((t): t is number => t != null)
+  const tMin = temps.length ? Math.min(...temps) : null
+  const tMax = temps.length ? Math.max(...temps) : null
+  const humAvg = data.length ? Math.round(data.reduce((s, d) => s + (d.U ?? 0), 0) / data.length) : null
 
   const charts = [
-    { key: 'T', label: 'Température', unit: '°C', color: '#d85a30', icon: 'ti-thermometer', ChartComp: 'line' },
-    { key: 'RR', label: 'Pluviométrie', unit: ' mm', color: '#185fa5', icon: 'ti-cloud-rain', ChartComp: 'bar' },
-    { key: 'U', label: 'Humidité relative', unit: '%', color: '#0f6e56', icon: 'ti-droplet', ChartComp: 'line' },
+    { key: 'T', label: 'Température (°C)', unit: '°C', color: '#d85a30', icon: 'ti-thermometer', type: 'line' },
+    { key: 'RR', label: 'Pluviométrie (mm)', unit: ' mm', color: '#185fa5', icon: 'ti-cloud-rain', type: 'bar' },
+    { key: 'U', label: 'Humidité relative (%)', unit: '%', color: '#0f6e56', icon: 'ti-droplet', type: 'line' },
   ]
 
   return (
@@ -120,17 +128,40 @@ function WeatherPage({ device, onBack }: { device: DeviceInfo; onBack: () => voi
         ))}
       </div>
 
+      {/* Stats summary */}
+      {data.length > 0 && (
+        <div className={styles.statsRow}>
+          <div className={styles.statCard}>
+            <i className="ti ti-cloud-rain" style={{ color: '#185fa5' }} />
+            <span className={styles.statValue}>{rainTotal.toFixed(1)} mm</span>
+            <span className={styles.statLabel}>Cumul pluie</span>
+          </div>
+          {tMin !== null && <div className={styles.statCard}>
+            <i className="ti ti-temperature-minus" style={{ color: '#0f6e56' }} />
+            <span className={styles.statValue}>{tMin.toFixed(1)}°C</span>
+            <span className={styles.statLabel}>T° min</span>
+          </div>}
+          {tMax !== null && <div className={styles.statCard}>
+            <i className="ti ti-temperature-plus" style={{ color: '#d85a30' }} />
+            <span className={styles.statValue}>{tMax.toFixed(1)}°C</span>
+            <span className={styles.statLabel}>T° max</span>
+          </div>}
+          {humAvg !== null && <div className={styles.statCard}>
+            <i className="ti ti-droplet" style={{ color: '#0f6e56' }} />
+            <span className={styles.statValue}>{humAvg}%</span>
+            <span className={styles.statLabel}>Humidité moy.</span>
+          </div>}
+        </div>
+      )}
+
       {loading ? <div className={styles.loadingRow}><i className="ti ti-loader" /> Chargement…</div> : (
         <div className={styles.charts}>
-          {charts.map(({ key, label, unit, color, icon, ChartComp }) => (
+          {charts.map(({ key, label, unit, color, icon, type }) => (
             <div key={key} className={styles.chartCard}>
-              <div className={styles.chartHead}>
-                <i className={`ti ${icon}`} style={{ color }} />
-                <span>{label}</span>
-              </div>
+              <div className={styles.chartHead}><i className={`ti ${icon}`} style={{ color }} /><span>{label}</span></div>
               {pts.length === 0 ? <EmptyChart /> : (
                 <ResponsiveContainer width="100%" height={180}>
-                  {ChartComp === 'bar' ? (
+                  {type === 'bar' ? (
                     <BarChart data={pts} margin={{ top: 4, right: 8, left: -10, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f0ede6" />
                       <XAxis dataKey="date" tick={{ fontSize: 10 }} />
@@ -273,6 +304,7 @@ export default function WeenatView() {
   const [summary, setSummary] = useState<WeenatSummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<DeviceInfo | null>(null)
+  const [tab, setTab] = useState<'capteurs' | 'carte'>('capteurs')
 
   useEffect(() => {
     fetch('/api/weenat?type=devices')
@@ -294,23 +326,33 @@ export default function WeenatView() {
       <div className={styles.header}>
         <div className={styles.headerIcon}><i className="ti ti-cloud-rain" /></div>
         <div>
-          <h2>Irrigation — Données Weenat</h2>
-          <p>7 capteurs · Ferme SOL · Cliquez sur un capteur pour voir ses données</p>
+          <h2>Irrigation — Weenat</h2>
+          <p>7 capteurs · Ferme SOL · Lion-en-Sullias</p>
         </div>
         <a href="https://app.weenat.com" target="_blank" rel="noopener noreferrer" className={styles.linkBtn}>
           <i className="ti ti-external-link" /> Weenat
         </a>
       </div>
 
-      {summary && (
+      {/* Tabs */}
+      <div className={styles.tabs}>
+        <button className={tab === 'capteurs' ? styles.tabOn : styles.tabOff} onClick={() => setTab('capteurs')}>
+          <i className="ti ti-activity" /> Capteurs
+        </button>
+        <button className={tab === 'carte' ? styles.tabOn : styles.tabOff} onClick={() => setTab('carte')}>
+          <i className="ti ti-map" /> Carte des parcelles
+        </button>
+      </div>
+
+      {tab === 'carte' && <WeenatMap />}
+
+      {tab === 'capteurs' && summary && (
         <>
           <p className={styles.hint}><i className="ti ti-hand-click" /> Cliquez sur un capteur pour accéder à ses graphiques</p>
-
           <div className={styles.listSection}>
             <p className={styles.sectionLabel}>Station météo</p>
             <DeviceRow device={summary.weather} isWeather onClick={() => setSelected(summary.weather)} />
           </div>
-
           <div className={styles.listSection}>
             <p className={styles.sectionLabel}>Sondes tensiométriques ({summary.tensiometers.length})</p>
             {summary.tensiometers.map(t => (

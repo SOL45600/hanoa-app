@@ -20,6 +20,20 @@
 .hint { font-size: 12px; color: #888; margin: 0 0 16px; display: flex; align-items: center; gap: 5px; }
 .hint i { font-size: 14px; }
 
+/* Tabs */
+.tabs { display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 0.5px solid var(--border); padding-bottom: 0; }
+.tabOn { padding: 8px 16px; font-size: 13px; font-weight: 500; color: var(--green); border-bottom: 2px solid var(--green); margin-bottom: -1px; display: flex; align-items: center; gap: 5px; }
+.tabOff { padding: 8px 16px; font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 5px; transition: color 0.12s; }
+.tabOff:hover { color: var(--text); }
+.tabOn i, .tabOff i { font-size: 14px; }
+
+/* Stats summary */
+.statsRow { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; margin-bottom: 20px; }
+.statCard { background: white; border: 0.5px solid var(--border); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; }
+.statCard i { font-size: 16px; }
+.statValue { font-size: 20px; font-weight: 600; line-height: 1; }
+.statLabel { font-size: 11px; color: var(--muted); }
+
 .listSection { margin-bottom: 20px; }
 .sectionLabel { font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; color: #888; margin: 0 0 6px; font-family: sans-serif; }
 

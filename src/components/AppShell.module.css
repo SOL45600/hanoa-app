@@ -67,10 +67,7 @@
 .btnGreen:hover { background: #0d5d48; }
 
 @media (max-width: 640px) {
-  .overlay {
-    display: block;
-  }
-  .content {
-    padding: 1rem;
-  }
+  .overlay { display: block; }
+  .content { padding: 0.75rem; }
+  .shell { height: 100dvh; } /* Dynamic viewport height for mobile browsers */
 }

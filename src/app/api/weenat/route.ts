@@ -57,6 +57,21 @@ export async function GET(request: NextRequest) {
     })
   }
 
+  // Plots (parcels) with GeoJSON
+  if (type === 'plots') {
+    const data = await weenatFetch('/plots/')
+    if (!data?.results) return NextResponse.json([])
+    return NextResponse.json(data.results.map((p: {
+      id: number; name: string; location: [number, number]; location_text: string; geojson: object
+    }) => ({
+      id: p.id,
+      name: p.name,
+      center: p.location, // [lat, lng]
+      location_text: p.location_text,
+      geojson: p.geojson,
+    })))
+  }
+
   // Single device data with time series
   if (type === 'device' && deviceId) {
     const id = parseInt(deviceId)
