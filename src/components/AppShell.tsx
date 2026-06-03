@@ -1,5 +1,5 @@
 'use client'
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { User } from '@supabase/supabase-js'
 import { Profile, Section, SectionTree, buildTree } from '@/lib/types'
 import { createClient } from '@/lib/supabase'
@@ -32,10 +32,55 @@ export default function AppShell({ user, profile, initialSections }: Props) {
   const [showUsers, setShowUsers] = useState(false)
   const [showSearch, setShowSearch] = useState(false)
   const [showCalendar, setShowCalendar] = useState(false)
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({})
   const [newName, setNewName] = useState('')
   const [newParent, setNewParent] = useState('')
 
   const tree = buildTree(sections)
+
+  // Load unread counts on mount and subscribe to new posts
+  useEffect(() => {
+    const loadUnread = async () => {
+      const { data: reads } = await supabase
+        .from('section_reads').select('section_id, last_read_at').eq('user_id', user.id)
+      const readMap: Record<string, string> = {}
+      reads?.forEach(r => { readMap[r.section_id] = r.last_read_at })
+
+      const counts: Record<string, number> = {}
+      await Promise.all(sections.map(async (s) => {
+        const lastRead = readMap[s.id]
+        const query = supabase.from('posts').select('id', { count: 'exact', head: true })
+          .eq('section_id', s.id)
+          .neq('author_id', user.id)
+        const { count } = lastRead
+          ? await query.gt('created_at', lastRead)
+          : await query
+        if (count && count > 0) counts[s.id] = count
+      }))
+      setUnreadCounts(counts)
+    }
+    loadUnread()
+
+    // Realtime: increment badge when new post arrives in any section
+    const channel = supabase.channel('global-posts')
+      .on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'posts',
+      }, (payload) => {
+        const post = payload.new as { section_id: string; author_id: string }
+        if (post.author_id !== user.id) {
+          setUnreadCounts(prev => ({ ...prev, [post.section_id]: (prev[post.section_id] || 0) + 1 }))
+        }
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [sections.length])
+
+  const markSectionRead = async (sectionId: string) => {
+    setUnreadCounts(prev => { const n = { ...prev }; delete n[sectionId]; return n })
+    await supabase.from('section_reads').upsert({
+      user_id: user.id, section_id: sectionId, last_read_at: new Date().toISOString()
+    }, { onConflict: 'user_id,section_id' })
+  }
 
   const handleAddSection = async () => {
     if (!newName.trim()) return
@@ -86,7 +131,8 @@ export default function AppShell({ user, profile, initialSections }: Props) {
             tree={tree}
             sections={sections}
             selected={selected}
-            onSelect={(s) => { setSelected(s); setView('feed'); setSidebarOpen(window.innerWidth > 640) }}
+            onSelect={(s) => { setSelected(s); setView('feed'); markSectionRead(s.id); setSidebarOpen(window.innerWidth > 640) }}
+            unreadCounts={unreadCounts}
             onHome={() => { setSelected(null); setShowUsers(false); setShowSearch(false); setShowCalendar(false); setSidebarOpen(window.innerWidth > 640) }}
             onUsers={() => { setShowUsers(true); setSelected(null); setShowCalendar(false); setSidebarOpen(window.innerWidth > 640) }}
             onCalendar={() => { setShowCalendar(true); setSelected(null); setShowUsers(false); setSidebarOpen(window.innerWidth > 640) }}

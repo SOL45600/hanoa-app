@@ -66,6 +66,23 @@ export default function DocsView({ sectionId, userId, profile, supabase }: Props
   const fileRef = useRef<HTMLInputElement>(null)
   const dragCounter = useRef(0)
 
+  // Realtime subscription for documents
+  useEffect(() => {
+    const channel = supabase
+      .channel(`docs:${sectionId}`)
+      .on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'documents',
+        filter: `section_id=eq.${sectionId}`,
+      }, (payload) => {
+        const newDoc = payload.new as Document
+        if (newDoc.author_id !== userId) {
+          setDocs(prev => [newDoc, ...prev])
+        }
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [sectionId])
+
   useEffect(() => {
     setLoading(true)
     supabase

@@ -16,6 +16,7 @@ interface Props {
   onUsers: () => void
   onCalendar: () => void
   showCalendar: boolean
+  unreadCounts?: Record<string, number>
   profile: Profile
   onLogout: () => void
 }
@@ -33,9 +34,10 @@ function Avatar({ profile, size = 28 }: { profile: Profile; size?: number }) {
   )
 }
 
-function SectionNode({ node, depth, selected, onSelect, onDelete, onRename }: {
+function SectionNode({ node, depth, selected, onSelect, onDelete, onRename, unreadCounts }: {
   node: SectionTree; depth: number; selected: SectionTree | null
   onSelect: (s: SectionTree) => void; onDelete: (id: string) => void; onRename: (id: string, label: string) => void
+  unreadCounts?: Record<string, number>
 }) {
   const [expanded, setExpanded] = useState(depth === 0)
   const [editing, setEditing] = useState(false)
@@ -71,7 +73,14 @@ function SectionNode({ node, depth, selected, onSelect, onDelete, onRename }: {
               onBlur={confirmRename}
               onKeyDown={e => { if (e.key === 'Enter') confirmRename(); if (e.key === 'Escape') setEditing(false) }}
               onClick={e => e.stopPropagation()} />
-          : <span className={styles.label}>{node.label}</span>
+          : (
+            <span className={styles.label}>
+              {node.label}
+              {unreadCounts?.[node.id] ? (
+                <span className={styles.unread}>{unreadCounts[node.id]}</span>
+              ) : null}
+            </span>
+          )
         }
         {!editing && isSel && (
           <div className={styles.actions} onClick={e => e.stopPropagation()}>
@@ -85,13 +94,13 @@ function SectionNode({ node, depth, selected, onSelect, onDelete, onRename }: {
         )}
       </div>
       {hasChildren && expanded && node.children.map(c => (
-        <SectionNode key={c.id} node={c} depth={depth + 1} selected={selected} onSelect={onSelect} onDelete={onDelete} onRename={onRename} />
+        <SectionNode key={c.id} node={c} depth={depth + 1} selected={selected} onSelect={onSelect} onDelete={onDelete} onRename={onRename} unreadCounts={unreadCounts} />
       ))}
     </div>
   )
 }
 
-export default function Sidebar({ tree, sections, selected, onSelect, onHome, onClose, onAddSection, onDelete, onRename, onUsers, onCalendar, showCalendar, profile, onLogout }: Props) {
+export default function Sidebar({ tree, sections, selected, onSelect, onHome, onClose, onAddSection, onDelete, onRename, onUsers, onCalendar, showCalendar, unreadCounts, profile, onLogout }: Props) {
   return (
     <div className={styles.sidebar}>
       <div className={styles.header}>
@@ -116,7 +125,7 @@ export default function Sidebar({ tree, sections, selected, onSelect, onHome, on
         <p className={styles.navLabel}>Rubriques</p>
         {tree.map(node => (
           <SectionNode key={node.id} node={node} depth={0} selected={selected}
-            onSelect={onSelect} onDelete={onDelete} onRename={onRename} />
+            onSelect={onSelect} onDelete={onDelete} onRename={onRename} unreadCounts={unreadCounts} />
         ))}
         <button onClick={onAddSection} className={styles.addBtn}>
           <i className="ti ti-plus" style={{ fontSize: 14 }} />

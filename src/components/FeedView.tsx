@@ -155,6 +155,23 @@ export default function FeedView({ sectionId, userId, profile, supabase }: Props
     fetch('/api/admin/users').then(r => r.json()).then(d => { if (Array.isArray(d)) setUsers(d) })
   }, [])
 
+  // Realtime subscription
+  useEffect(() => {
+    const channel = supabase
+      .channel(`posts:${sectionId}`)
+      .on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'posts',
+        filter: `section_id=eq.${sectionId}`,
+      }, (payload) => {
+        const newPost = payload.new as PostWithAttachments
+        if (newPost.author_id !== userId) {
+          setPosts(prev => [{ ...newPost, attachments: [] }, ...prev])
+        }
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [sectionId])
+
   useEffect(() => {
     setLoading(true)
     supabase.from('posts').select('*')
