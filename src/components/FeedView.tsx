@@ -211,7 +211,7 @@ export default function FeedView({ sectionId, userId, profile, supabase }: Props
     }
 
     // Notify mentioned users
-    const mentions = [...new Set(text.match(/@(\w+)/g)?.map(m => m.slice(1)) || [])]
+    const mentions = Array.from(new Set(text.match(/@(\w+)/g)?.map(m => m.slice(1)) || []))
     if (mentions.length > 0) {
       fetch('/api/notify/mention', {
         method: 'POST',
@@ -248,7 +248,7 @@ export default function FeedView({ sectionId, userId, profile, supabase }: Props
         ? { ...p, comments: [...(p.comments || []), { ...data, profiles: profile }] }
         : p))
       // Notify mentions in comment
-      const mentions = [...new Set(content.match(/@(\w+)/g)?.map(m => m.slice(1)) || [])]
+      const mentions = Array.from(new Set(content.match(/@(\w+)/g)?.map(m => m.slice(1)) || []))
       if (mentions.length > 0) {
         fetch('/api/notify/mention', {
           method: 'POST',
