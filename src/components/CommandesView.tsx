@@ -62,7 +62,7 @@ const DOC_TYPES = [
 
 const PRODUCTS = ['Noisettes', 'Amandes', 'Noix de pécan', 'Huile de noisette', 'Praliné', 'Poudre', 'Autre']
 const UNITS = ['kg', 'sacs', 'cartons', 'palettes', 'sachets']
-const CARRIERS = ['GLS', 'Chronopost', 'Colissimo', 'DHL', 'DPD', 'TNT', 'Autre']
+const CARRIERS = ['GEODIS', 'GLS', 'Chronopost', 'Colissimo', 'DHL', 'DPD', 'TNT', 'Autre']
 
 function fmtDate(d: string) {
   if (!d) return '–'
@@ -70,16 +70,19 @@ function fmtDate(d: string) {
 }
 function fmtSize(b: number) { return b < 1048576 ? `${(b/1024).toFixed(0)} Ko` : `${(b/1048576).toFixed(1)} Mo` }
 
-function StatusBadge({ status, onClick }: { status: string; onClick?: () => void }) {
+function StatusSelect({ status, onChange }: { status: string; onChange: (s: string) => void }) {
   const s = STATUSES[status] || STATUSES.a_preparer
   return (
-    <span
-      className={`${styles.badge} ${onClick ? styles.badgeClickable : ''}`}
-      style={{ color: s.color, background: s.bg }}
-      onClick={onClick}
+    <select
+      className={styles.statusSelect}
+      style={{ color: s.color, background: s.bg, borderColor: s.color + '44' }}
+      value={status}
+      onChange={e => onChange(e.target.value)}
     >
-      {s.label}
-    </span>
+      {STATUS_ORDER.map(k => (
+        <option key={k} value={k}>{STATUSES[k].label}</option>
+      ))}
+    </select>
   )
 }
 
@@ -118,15 +121,8 @@ function OrderCard({ order, onStatusChange, onUpload, onPreview, onDownload, use
   return (
     <div className={`${styles.card} ${order.status === 'livre' ? styles.cardDone : ''}`}>
       <div className={styles.cardHeader}>
-        <div className={styles.cardHeaderLeft}>
-          <span className={styles.orderNum}>#{order.order_number}</span>
-          <StatusBadge status={order.status} />
-        </div>
-        {nextStatus && (
-          <button className={styles.advanceBtn} onClick={() => onStatusChange(order.id, nextStatus)}>
-            {STATUSES[nextStatus].label} →
-          </button>
-        )}
+        <span className={styles.orderNum}>#{order.order_number}</span>
+        <StatusSelect status={order.status} onChange={s => onStatusChange(order.id, s)} />
       </div>
 
       <div className={styles.cardMeta}>
@@ -383,8 +379,7 @@ function OrderTable({ orders, onStatusChange }: {
                 <td>{o.lot_number || '–'}</td>
                 <td>{o.carrier || '–'}</td>
                 <td>
-                  <StatusBadge status={o.status}
-                    onClick={STATUSES[o.status]?.next ? () => onStatusChange(o.id, STATUSES[o.status].next!) : undefined} />
+                  <StatusSelect status={o.status} onChange={s => onStatusChange(o.id, s)} />
                 </td>
                 <td>{o.ship_date ? fmtDate(o.ship_date) : '–'}</td>
                 <td className={styles.tdTracking}>{o.tracking_number || '–'}</td>
