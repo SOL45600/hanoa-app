@@ -83,6 +83,33 @@
 .attAction { width: 26px; height: 26px; border-radius: 5px; display: flex; align-items: center; justify-content: center; color: var(--muted); transition: all 0.12s; flex-shrink: 0; }
 .attAction:hover { background: white; color: var(--green); }
 
+/* Mention autocomplete */
+.textareaWrap { position: relative; }
+.mentionDropdown {
+  position: absolute; bottom: 100%; left: 0; right: 0; z-index: 50;
+  background: white; border: 0.5px solid var(--border);
+  border-radius: 10px; box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+  overflow: hidden; margin-bottom: 4px; max-height: 200px; overflow-y: auto;
+}
+.mentionOption {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 9px 12px; font-size: 13px; text-align: left;
+  transition: background 0.1s;
+}
+.mentionOption:hover { background: var(--green-light); }
+
+/* Delete comment */
+.deleteComment {
+  opacity: 0; padding: 3px 5px; border-radius: 5px;
+  color: #ccc; transition: all 0.12s; flex-shrink: 0; align-self: flex-start; margin-top: 2px;
+}
+.comment:hover .deleteComment { opacity: 1; }
+.deleteComment:hover { color: #d85a30; background: #faece7; }
+
+/* Comment input with mention support */
+.commentInputWrap { display: flex; gap: 8px; margin-top: 6px; align-items: flex-start; }
+.commentInputInner { flex: 1; position: relative; }
+
 .commentToggle {
   margin-top: 8px; font-size: 12px; color: var(--muted);
   display: flex; align-items: center; gap: 5px; padding: 3px 0; font-family: 'Georgia', serif;
@@ -95,7 +122,7 @@
 .commentAuthor { font-weight: 500; margin-right: 6px; }
 .commentDate { font-size: 11px; color: var(--muted); }
 .commentBubble p { margin-top: 3px; }
-.commentInput { display: flex; gap: 8px; margin-top: 6px; align-items: center; }
+.commentInput { display: flex; gap: 8px; align-items: center; }
 .commentInput input { flex: 1; border: 0.5px solid var(--border-mid); border-radius: 8px; padding: 6px 10px; font-size: 13px; background: #fafaf8; }
 .commentInput input:focus { outline: none; border-color: var(--green); }
 .commentInput button { padding: 6px 10px; background: var(--green); color: white; border-radius: 7px; font-size: 13px; }
