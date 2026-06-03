@@ -83,6 +83,7 @@ interface Props {
   supabase: SupabaseClient
   userId: string
   profile: Profile
+  sections?: { id: string; label: string }[]
   myOnly?: boolean
 }
 
