@@ -3,91 +3,103 @@ import { NextResponse, type NextRequest } from 'next/server'
 const API_KEY = process.env.WEENAT_API_KEY!
 const BASE = 'https://api.weenat.com/v3'
 
-// Devices configuration
-const WEATHER_STATION = { id: 76938, label: 'Station météo', model: 'P+' }
-const TENSIOMETERS = [
-  { id: 76945, label: 'Sonde CHP-30/60 A', model: 'CHP-30/60', depths: [30, 60] },
-  { id: 76946, label: 'Sonde CHP-30/60 B', model: 'CHP-30/60', depths: [30, 60] },
-  { id: 76943, label: 'Sonde CHP-15/30 A', model: 'CHP-15/30', depths: [15, 30] },
-  { id: 76944, label: 'Sonde CHP-15/30 B', model: 'CHP-15/30', depths: [15, 30] },
-  { id: 76942, label: 'Sonde CHP-15/30 C', model: 'CHP-15/30', depths: [15, 30] },
-  { id: 76939, label: 'Sonde CHP-15/30 D', model: 'CHP-15/30', depths: [15, 30] },
-]
+export const DEVICES = {
+  weather: { id: 76938, label: 'Station météo', model: 'P+', metrics: ['T', 'RR', 'U', 'THI'] },
+  tensiometers: [
+    { id: 76945, label: 'Sonde A — Parcelle D', model: 'CHP-30/60', depths: [30, 60], metrics: ['HPOT', 'T_CAL'] },
+    { id: 76946, label: 'Sonde B — Parcelle D', model: 'CHP-30/60', depths: [30, 60], metrics: ['HPOT', 'T_CAL'] },
+    { id: 76943, label: 'Sonde C', model: 'CHP-15/30', depths: [15, 30], metrics: ['HPOT', 'T_CAL'] },
+    { id: 76944, label: 'Sonde D', model: 'CHP-15/30', depths: [15, 30], metrics: ['HPOT', 'T_CAL'] },
+    { id: 76942, label: 'Sonde E', model: 'CHP-15/30', depths: [15, 30], metrics: ['HPOT', 'T_CAL'] },
+    { id: 76939, label: 'Sonde F', model: 'CHP-15/30', depths: [15, 30], metrics: ['HPOT', 'T_CAL'] },
+  ],
+}
 
-async function fetchDevice(id: number) {
-  const res = await fetch(`${BASE}/devices/${id}/`, {
-    headers: { 'Authorization': `Weenat-Api-Key ${API_KEY}` },
-    next: { revalidate: 300 }, // cache 5 min
+async function weenatFetch(path: string) {
+  const res = await fetch(`${BASE}${path}`, {
+    headers: { Authorization: `Weenat-Api-Key ${API_KEY}` },
+    next: { revalidate: 300 },
   })
   if (!res.ok) return null
   return res.json()
 }
 
-async function fetchData(id: number, fields: string, days = 7) {
+function dateRange(days: number) {
   const end = new Date()
-  const start = new Date(end.getTime() - days * 24 * 60 * 60 * 1000)
-  const fmt = (d: Date) => d.toISOString().replace('T', 'T').split('.')[0] + 'Z'
-  const url = `${BASE}/data/devices/${id}/?time_step=day&fields=${fields}&start=${fmt(start)}&end=${fmt(end)}`
-  const res = await fetch(url, {
-    headers: { 'Authorization': `Weenat-Api-Key ${API_KEY}` },
-    next: { revalidate: 300 },
-  })
-  if (!res.ok) return []
-  return res.json()
+  const start = new Date(end.getTime() - days * 86400000)
+  const fmt = (d: Date) => d.toISOString().split('.')[0] + 'Z'
+  return { start: fmt(start), end: fmt(end) }
 }
 
 export async function GET(request: NextRequest) {
-  const type = request.nextUrl.searchParams.get('type') || 'summary'
+  const { searchParams } = request.nextUrl
+  const type = searchParams.get('type') || 'summary'
+  const deviceId = searchParams.get('id')
+  const days = parseInt(searchParams.get('days') || '30')
+  const step = searchParams.get('step') || 'hour'
 
+  // Device info only
   if (type === 'devices') {
-    // Return device metadata + latest measurement info
-    const weatherDev = await fetchDevice(WEATHER_STATION.id)
-    const tensioDevs = await Promise.all(TENSIOMETERS.map(t => fetchDevice(t.id)))
+    const [weatherDev, ...tensioDev] = await Promise.all([
+      weenatFetch(`/devices/${DEVICES.weather.id}/`),
+      ...DEVICES.tensiometers.map(t => weenatFetch(`/devices/${t.id}/`)),
+    ])
     return NextResponse.json({
-      weather: weatherDev ? {
-        ...WEATHER_STATION,
-        latest: weatherDev.latest_measurement_broadcast,
-        location: weatherDev.location_text,
-        metrics: weatherDev.available_metrics,
-      } : null,
-      tensiometers: TENSIOMETERS.map((t, i) => tensioDevs[i] ? {
+      weather: {
+        ...DEVICES.weather,
+        latest: weatherDev?.latest_measurement_broadcast,
+        location: weatherDev?.location_text,
+      },
+      tensiometers: DEVICES.tensiometers.map((t, i) => ({
         ...t,
-        latest: tensioDevs[i].latest_measurement_broadcast,
-        metrics: tensioDevs[i].available_metrics,
-      } : null).filter(Boolean),
+        latest: tensioDev[i]?.latest_measurement_broadcast,
+      })),
     })
   }
 
-  if (type === 'weather') {
-    const data = await fetchData(WEATHER_STATION.id, 'T,RR,U', 30)
-    return NextResponse.json({ data, device: WEATHER_STATION })
+  // Single device data with time series
+  if (type === 'device' && deviceId) {
+    const id = parseInt(deviceId)
+    const allDevices = [DEVICES.weather, ...DEVICES.tensiometers]
+    const device = allDevices.find(d => d.id === id)
+    if (!device) return NextResponse.json({ error: 'Device not found' }, { status: 404 })
+
+    const { start, end } = dateRange(days)
+    const fields = device.metrics.join(',')
+    const [info, data] = await Promise.all([
+      weenatFetch(`/devices/${id}/`),
+      weenatFetch(`/data/devices/${id}/?time_step=${step}&fields=${fields}&start=${start}&end=${end}`),
+    ])
+
+    return NextResponse.json({
+      device: { ...device, latest: info?.latest_measurement_broadcast, location: info?.location_text },
+      data: data || [],
+      period: { start, end, days, step },
+    })
   }
 
+  // Weather station data
+  if (type === 'weather') {
+    const { start, end } = dateRange(days)
+    const data = await weenatFetch(
+      `/data/devices/${DEVICES.weather.id}/?time_step=${step}&fields=T,RR,U&start=${start}&end=${end}`
+    )
+    return NextResponse.json({ data: data || [], period: { start, end } })
+  }
+
+  // All tensiometers data
   if (type === 'tensiometers') {
+    const { start, end } = dateRange(days)
     const results = await Promise.all(
-      TENSIOMETERS.map(async (t) => {
-        const data = await fetchData(t.id, 'HPOT,T_CAL', 30)
-        return { ...t, data }
+      DEVICES.tensiometers.map(async (t) => {
+        const data = await weenatFetch(
+          `/data/devices/${t.id}/?time_step=${step}&fields=HPOT,T_CAL&start=${start}&end=${end}`
+        )
+        return { ...t, data: data || [] }
       })
     )
     return NextResponse.json(results)
   }
 
-  // Default: summary with latest readings
-  const [weatherDev, ...tensioDev] = await Promise.all([
-    fetchDevice(WEATHER_STATION.id),
-    ...TENSIOMETERS.map(t => fetchDevice(t.id)),
-  ])
-
-  return NextResponse.json({
-    weather: {
-      ...WEATHER_STATION,
-      latest: weatherDev?.latest_measurement_broadcast,
-      location: weatherDev?.location_text,
-    },
-    tensiometers: TENSIOMETERS.map((t, i) => ({
-      ...t,
-      latest: tensioDev[i]?.latest_measurement_broadcast,
-    })),
-  })
+  return NextResponse.json({ error: 'Unknown type' }, { status: 400 })
 }
