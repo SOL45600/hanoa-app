@@ -63,6 +63,12 @@
 .pinBtn { padding: 3px 5px; color: #ccc; border-radius: 5px; transition: all 0.12s; }
 .pinBtn:hover { color: var(--green); background: var(--green-light); }
 
+.deletePostBtn {
+  opacity: 0; padding: 3px 5px; color: #ccc; border-radius: 5px; transition: all 0.12s;
+}
+.post:hover .deletePostBtn { opacity: 1; }
+.deletePostBtn:hover { color: #d85a30; background: #faece7; }
+
 .postText { font-size: 14px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
 
 /* @mention */

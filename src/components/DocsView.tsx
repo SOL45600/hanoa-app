@@ -199,6 +199,17 @@ export default function DocsView({ sectionId, userId, profile, supabase }: Props
                   <button onClick={() => getDownloadUrl(doc.storage_path)} className={styles.actionBtn} title="Télécharger">
                     <i className="ti ti-download" style={{ fontSize: 15 }} />
                   </button>
+                  {doc.author_id === userId && (
+                    <button className={`${styles.actionBtn} ${styles.deleteBtn}`} title="Supprimer"
+                      onClick={async () => {
+                        if (!confirm(`Supprimer "${doc.name}" ?`)) return
+                        await supabase.storage.from('hanoa-files').remove([doc.storage_path])
+                        await supabase.from('documents').delete().eq('id', doc.id)
+                        setDocs(ds => ds.filter(d => d.id !== doc.id))
+                      }}>
+                      <i className="ti ti-trash" style={{ fontSize: 15 }} />
+                    </button>
+                  )}
                 </div>
               </div>
               <div className={styles.docMeta}>

@@ -355,6 +355,16 @@ export default function FeedView({ sectionId, userId, profile, supabase }: Props
                 title={post.pinned ? 'Désépingler' : 'Épingler'}>
                 <i className={`ti ${post.pinned ? 'ti-pin-filled' : 'ti-pin'}`} />
               </button>
+              {post.author_id === userId && (
+                <button className={styles.deletePostBtn} title="Supprimer le message"
+                  onClick={async () => {
+                    if (!confirm('Supprimer ce message ?')) return
+                    await supabase.from('posts').delete().eq('id', post.id)
+                    setPosts(ps => ps.filter(p => p.id !== post.id))
+                  }}>
+                  <i className="ti ti-trash" />
+                </button>
+              )}
             </div>
             {post.content && <p className={styles.postText}>{renderText(post.content)}</p>}
             {post.attachments && post.attachments.length > 0 && (
