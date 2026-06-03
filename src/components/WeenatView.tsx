@@ -1,18 +1,12 @@
 'use client'
 import { useEffect, useState } from 'react'
-import dynamic from 'next/dynamic'
+import {
+  LineChart, Line, BarChart, Bar,
+  XAxis, YAxis, CartesianGrid, Tooltip as ReTooltip,
+  ResponsiveContainer,
+} from 'recharts'
 import styles from './WeenatView.module.css'
 import WeenatMap from './WeenatMap'
-
-const LineChart = dynamic(() => import('recharts').then(m => m.LineChart), { ssr: false })
-const Line = dynamic(() => import('recharts').then(m => m.Line), { ssr: false })
-const BarChart = dynamic(() => import('recharts').then(m => m.BarChart), { ssr: false })
-const Bar = dynamic(() => import('recharts').then(m => m.Bar), { ssr: false })
-const XAxis = dynamic(() => import('recharts').then(m => m.XAxis), { ssr: false })
-const YAxis = dynamic(() => import('recharts').then(m => m.YAxis), { ssr: false })
-const CartesianGrid = dynamic(() => import('recharts').then(m => m.CartesianGrid), { ssr: false })
-const ReTooltip = dynamic(() => import('recharts').then(m => m.Tooltip), { ssr: false })
-const ResponsiveContainer = dynamic(() => import('recharts').then(m => m.ResponsiveContainer), { ssr: false })
 
 interface DeviceInfo {
   id: number; label: string; model: string; latest: string | null

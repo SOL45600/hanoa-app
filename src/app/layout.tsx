@@ -24,6 +24,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="fr">
       <head>
         <link rel="apple-touch-icon" href="/icon-192.png" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        {/* Splash screen iOS — fond vert avec logo */}
+        <style dangerouslySetInnerHTML={{ __html: `
+          @media (display-mode: standalone) {
+            body::before {
+              content: '';
+              position: fixed;
+              inset: 0;
+              background: #0f6e56 url('/verger-login.jpg') center/cover;
+              z-index: -1;
+            }
+          }
+        `}} />
       </head>
       <body>{children}</body>
     </html>

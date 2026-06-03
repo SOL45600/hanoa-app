@@ -4,7 +4,7 @@
   "description": "Plateforme interne de gestion — Ferme SOL",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f5f2eb",
+  "background_color": "#0f6e56",
   "theme_color": "#0f6e56",
   "orientation": "portrait-primary",
   "icons": [
@@ -19,6 +19,15 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/verger-login.jpg",
+      "sizes": "640x480",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Projet SOL — Tableau de bord"
     }
   ]
 }
