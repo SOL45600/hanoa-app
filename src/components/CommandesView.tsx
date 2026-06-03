@@ -185,6 +185,27 @@ function OrderCard({ order, onStatusChange, onUpload, onPreview, onDownload, use
       </div>
 
       {order.notes && <p className={styles.cardNotes}><i className="ti ti-note" /> {order.notes}</p>}
+
+      {/* Sellsy invoice button when shipped */}
+      {order.status === 'envoye' && (
+        <button className={styles.sellsyBtn} onClick={async () => {
+          const res = await fetch('/api/sellsy', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: 'create_invoice',
+              client_name: order.client,
+              order_number: order.order_number,
+              lines: order.lines || [],
+            }),
+          })
+          const data = await res.json()
+          if (data.success) alert(`✓ Facture ${data.invoice_number} créée dans Sellsy`)
+          else alert(`Erreur : ${data.error}`)
+        }}>
+          <i className="ti ti-receipt" /> Créer facture dans Sellsy
+        </button>
+      )}
     </div>
   )
 }

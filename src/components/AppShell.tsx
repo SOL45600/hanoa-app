@@ -13,6 +13,7 @@ import UsersView from './UsersView'
 import SearchView from './SearchView'
 import CommandesView from './CommandesView'
 import CalendarView from './CalendarView'
+import FinanceView from './FinanceView'
 import Modal from './Modal'
 import styles from './AppShell.module.css'
 
@@ -188,12 +189,16 @@ export default function AppShell({ user, profile, initialSections }: Props) {
           {!showUsers && selected && selected.label.toLowerCase() === 'planning' && (
             <CalendarView supabase={supabase} userId={user.id} profile={profile} sections={sections} />
           )}
+          {!showUsers && selected && selected.label.toLowerCase() === 'finance' && (
+            <FinanceView profile={profile} />
+          )}
           {!showUsers && selected && selected.label.toLowerCase().includes('irrigation') && <WeenatView />}
           {!showUsers && selected && selected.label.toLowerCase() === 'commandes' && (
             <CommandesView sectionId={selected.id} userId={user.id} profile={profile} supabase={supabase} />
           )}
           {!showUsers && !showSearch && selected &&
             selected.label.toLowerCase() !== 'planning' &&
+            selected.label.toLowerCase() !== 'finance' &&
             !selected.label.toLowerCase().includes('irrigation') &&
             selected.label.toLowerCase() !== 'commandes' &&
             view === 'feed' && (
@@ -201,6 +206,7 @@ export default function AppShell({ user, profile, initialSections }: Props) {
           )}
           {!showUsers && selected &&
             selected.label.toLowerCase() !== 'planning' &&
+            selected.label.toLowerCase() !== 'finance' &&
             !selected.label.toLowerCase().includes('irrigation') &&
             selected.label.toLowerCase() !== 'commandes' &&
             view === 'docs' && (

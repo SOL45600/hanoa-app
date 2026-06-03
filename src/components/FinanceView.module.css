@@ -1,0 +1,33 @@
+.container { padding: 20px; max-width: 800px; }
+
+.header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 24px; }
+.header h2 { font-size: 17px; font-weight: 500; margin: 0 0 2px; }
+.header p { font-size: 12px; color: var(--muted); margin: 0; }
+.linkBtn { display: flex; align-items: center; gap: 5px; padding: 7px 12px; border: 0.5px solid var(--border-mid); border-radius: 7px; font-size: 13px; color: var(--green); text-decoration: none; white-space: nowrap; }
+.linkBtn:hover { background: var(--green-light); }
+
+.kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 28px; }
+.kpi { background: white; border: 0.5px solid var(--border); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 5px; }
+.kpi i { font-size: 20px; }
+.kpiValue { font-size: 22px; font-weight: 700; line-height: 1; }
+.kpiLabel { font-size: 12px; color: var(--muted); }
+
+.section { margin-bottom: 20px; }
+.sectionLabel { font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; color: #888; margin: 0 0 10px; font-family: sans-serif; }
+
+.tableWrap { border-radius: 10px; border: 0.5px solid var(--border); overflow: hidden; }
+.table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.table th { padding: 10px 12px; text-align: left; background: var(--bg); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: #888; font-family: sans-serif; border-bottom: 0.5px solid var(--border); }
+.table td { padding: 10px 12px; border-bottom: 0.5px solid var(--border); }
+.table tr:last-child td { border-bottom: none; }
+.tdNum { font-weight: 600; }
+.paid { color: #0f6e56; font-weight: 500; font-size: 12px; }
+.unpaid { color: #d85a30; font-weight: 500; font-size: 12px; }
+
+.restricted { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 60px; color: var(--muted); font-size: 14px; }
+.loading { display: flex; align-items: center; gap: 10px; padding: 24px; color: var(--muted); font-size: 14px; }
+.note { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 5px; margin-top: 16px; }
+
+@media (max-width: 640px) {
+  .kpis { grid-template-columns: 1fr; }
+}

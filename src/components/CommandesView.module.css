@@ -77,6 +77,14 @@
 .cardNotes { font-size: 12px; color: var(--muted); margin-top: 6px; }
 .cardNotes i { margin-right: 4px; }
 
+.sellsyBtn {
+  margin-top: 10px; display: flex; align-items: center; gap: 6px;
+  padding: 7px 12px; background: #f0f4ff; color: #185fa5;
+  border: 0.5px solid #185fa544; border-radius: 8px; font-size: 12px;
+  transition: all 0.12s; width: 100%; justify-content: center;
+}
+.sellsyBtn:hover { background: #185fa5; color: white; }
+
 /* Form */
 .form { background: white; border: 0.5px solid var(--border); border-radius: 12px; padding: 20px; }
 .formTitle { font-size: 15px; font-weight: 500; margin-bottom: 16px; }
