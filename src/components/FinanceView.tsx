@@ -5,13 +5,16 @@ import styles from './FinanceView.module.css'
 
 interface DashboardData {
   monthly_ca: number
+  yearly_ca: number
+  yearly_year: string
   total_clients: number
   unpaid_count: number
   unpaid_amount: number
-  recent_invoices: {
-    id: number; number: string; date: string
-    total_ht: number; remaining: number; paid: boolean
-  }[]
+  unpaid_year_count: number
+  unpaid_year_amount: number
+  monthly_breakdown: Record<string, number>
+  recent_invoices: { id: number; number: string; date: string; total_ht: number; remaining: number; paid: boolean }[]
+  unpaid_invoices: { id: number; number: string; date: string; total_ht: number; remaining: number }[]
 }
 
 function fmtEur(n: number) { return n.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }) }
@@ -62,44 +65,87 @@ export default function FinanceView({ profile }: { profile: Profile }) {
           <span className={styles.kpiValue}>{fmtEur(data.monthly_ca)}</span>
           <span className={styles.kpiLabel}>CA ce mois (HT)</span>
         </div>
+        <div className={styles.kpi} style={{ borderColor: '#0f6e5633' }}>
+          <i className="ti ti-calendar-stats" style={{ color: '#0f6e56' }} />
+          <span className={styles.kpiValue}>{fmtEur(data.yearly_ca)}</span>
+          <span className={styles.kpiLabel}>CA {data.yearly_year} (HT)</span>
+        </div>
         <div className={styles.kpi}>
           <i className="ti ti-building" style={{ color: '#185fa5' }} />
           <span className={styles.kpiValue}>{data.total_clients}</span>
           <span className={styles.kpiLabel}>Clients</span>
         </div>
-        <div className={styles.kpi} style={{ borderColor: data.unpaid_count > 0 ? '#d85a3044' : undefined }}>
-          <i className="ti ti-clock-dollar" style={{ color: data.unpaid_count > 0 ? '#d85a30' : '#888' }} />
-          <span className={styles.kpiValue} style={{ color: data.unpaid_count > 0 ? '#d85a30' : undefined }}>
-            {fmtEur(data.unpaid_amount)}
+        <div className={styles.kpi} style={{ borderColor: data.unpaid_year_count > 0 ? '#d85a3044' : undefined }}>
+          <i className="ti ti-clock-dollar" style={{ color: data.unpaid_year_count > 0 ? '#d85a30' : '#888' }} />
+          <span className={styles.kpiValue} style={{ color: data.unpaid_year_count > 0 ? '#d85a30' : undefined }}>
+            {fmtEur(data.unpaid_year_amount)}
           </span>
-          <span className={styles.kpiLabel}>{data.unpaid_count} facture{data.unpaid_count > 1 ? 's' : ''} impayée{data.unpaid_count > 1 ? 's' : ''}</span>
+          <span className={styles.kpiLabel}>{data.unpaid_year_count} impayée{data.unpaid_year_count > 1 ? 's' : ''} {data.yearly_year}</span>
         </div>
       </div>
 
+      {/* Monthly breakdown */}
+      <div className={styles.section}>
+        <p className={styles.sectionLabel}>CA mensuel {data.yearly_year} (HT)</p>
+        <div className={styles.barChart}>
+          {Object.entries(data.monthly_breakdown).map(([key, val]) => {
+            const maxVal = Math.max(...Object.values(data.monthly_breakdown), 1)
+            const pct = (val / maxVal) * 100
+            const month = new Date(key + '-01').toLocaleDateString('fr-FR', { month: 'short' })
+            const isCurrent = key === new Date().toISOString().slice(0, 7)
+            return (
+              <div key={key} className={styles.barCol}>
+                <span className={styles.barVal}>{val > 0 ? fmtEur(val).replace(/\s€/, '') : ''}</span>
+                <div className={styles.barWrap}>
+                  <div className={styles.bar} style={{
+                    height: `${Math.max(pct, val > 0 ? 4 : 0)}%`,
+                    background: isCurrent ? 'var(--green)' : val > 0 ? '#0f6e5666' : '#f0ede6'
+                  }} />
+                </div>
+                <span className={`${styles.barLabel} ${isCurrent ? styles.barLabelCurrent : ''}`}>{month}</span>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Unpaid invoices this year */}
+      {data.unpaid_invoices.length > 0 && (
+        <div className={styles.section}>
+          <p className={styles.sectionLabel}>Factures impayées {data.yearly_year}</p>
+          <div className={styles.tableWrap}>
+            <table className={styles.table}>
+              <thead><tr><th>N° Facture</th><th>Date</th><th>Total HT</th><th>Restant dû</th></tr></thead>
+              <tbody>
+                {data.unpaid_invoices.map(inv => (
+                  <tr key={inv.id}>
+                    <td className={styles.tdNum}>{inv.number}</td>
+                    <td>{fmtDate(inv.date)}</td>
+                    <td>{fmtEur(inv.total_ht)}</td>
+                    <td><span className={styles.unpaid}>{fmtEur(inv.remaining)}</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {/* Recent invoices */}
       <div className={styles.section}>
-        <p className={styles.sectionLabel}>Dernières factures</p>
+        <p className={styles.sectionLabel}>15 dernières factures</p>
         <div className={styles.tableWrap}>
           <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>N° Facture</th>
-                <th>Date</th>
-                <th>Montant HT</th>
-                <th>Statut</th>
-              </tr>
-            </thead>
+            <thead><tr><th>N° Facture</th><th>Date</th><th>Montant HT</th><th>Statut</th></tr></thead>
             <tbody>
               {data.recent_invoices.map(inv => (
                 <tr key={inv.id}>
                   <td className={styles.tdNum}>{inv.number}</td>
                   <td>{fmtDate(inv.date)}</td>
                   <td>{fmtEur(inv.total_ht)}</td>
-                  <td>
-                    <span className={inv.paid ? styles.paid : styles.unpaid}>
-                      {inv.paid ? '✓ Payée' : `${fmtEur(inv.remaining)} dû`}
-                    </span>
-                  </td>
+                  <td><span className={inv.paid ? styles.paid : styles.unpaid}>
+                    {inv.paid ? '✓ Payée' : `${fmtEur(inv.remaining)} dû`}
+                  </span></td>
                 </tr>
               ))}
             </tbody>

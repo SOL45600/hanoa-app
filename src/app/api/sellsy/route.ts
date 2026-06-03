@@ -37,32 +37,62 @@ export async function GET(request: NextRequest) {
   const type = searchParams.get('type')
 
   if (type === 'dashboard') {
+    const thisYear = new Date().getFullYear().toString()
+    const thisMonth = new Date().toISOString().slice(0, 7)
+
+    // Fetch enough invoices to cover the full year (up to 200)
     const [invoicesData, companiesData] = await Promise.all([
-      sellsyFetch('/invoices?limit=100&order[created]=desc'),
+      sellsyFetch(`/invoices?limit=200&order[created]=desc&date[after]=${thisYear}-01-01`),
       sellsyFetch('/companies?limit=1'),
     ])
     const invoices: any[] = invoicesData.data || []
-    const thisMonth = new Date().toISOString().slice(0, 7)
 
     const monthlyCA = invoices
       .filter(i => i.date?.startsWith(thisMonth))
       .reduce((s, i) => s + parseFloat(i.amounts?.total_excl_tax || '0'), 0)
 
-    const unpaid = invoices.filter(i => parseFloat(i.amounts?.total_remaining_due_incl_tax || '1') > 0)
-    const totalUnpaid = unpaid.reduce((s, i) => s + parseFloat(i.amounts?.total_remaining_due_incl_tax || '0'), 0)
+    const yearlyCA = invoices
+      .filter(i => i.date?.startsWith(thisYear))
+      .reduce((s, i) => s + parseFloat(i.amounts?.total_excl_tax || '0'), 0)
+
+    const unpaidAll = invoices.filter(i => parseFloat(i.amounts?.total_remaining_due_incl_tax || '1') > 0)
+    const unpaidYear = unpaidAll.filter(i => i.date?.startsWith(thisYear))
+    const totalUnpaid = unpaidAll.reduce((s, i) => s + parseFloat(i.amounts?.total_remaining_due_incl_tax || '0'), 0)
+    const totalUnpaidYear = unpaidYear.reduce((s, i) => s + parseFloat(i.amounts?.total_remaining_due_incl_tax || '0'), 0)
+
+    // Monthly breakdown for current year
+    const monthlyBreakdown: Record<string, number> = {}
+    for (let m = 1; m <= 12; m++) {
+      const key = `${thisYear}-${String(m).padStart(2, '0')}`
+      monthlyBreakdown[key] = invoices
+        .filter(i => i.date?.startsWith(key))
+        .reduce((s, i) => s + parseFloat(i.amounts?.total_excl_tax || '0'), 0)
+    }
 
     return NextResponse.json({
       monthly_ca: monthlyCA,
+      yearly_ca: yearlyCA,
+      yearly_year: thisYear,
       total_clients: companiesData.pagination?.total || 0,
-      unpaid_count: unpaid.length,
+      unpaid_count: unpaidAll.length,
       unpaid_amount: totalUnpaid,
-      recent_invoices: invoices.slice(0, 10).map(i => ({
+      unpaid_year_count: unpaidYear.length,
+      unpaid_year_amount: totalUnpaidYear,
+      monthly_breakdown: monthlyBreakdown,
+      recent_invoices: invoices.slice(0, 15).map(i => ({
         id: i.id,
         number: i.number,
         date: i.date,
         total_ht: parseFloat(i.amounts?.total_excl_tax || '0'),
         remaining: parseFloat(i.amounts?.total_remaining_due_incl_tax || '0'),
         paid: parseFloat(i.amounts?.total_remaining_due_incl_tax || '0') === 0,
+      })),
+      unpaid_invoices: unpaidYear.map(i => ({
+        id: i.id,
+        number: i.number,
+        date: i.date,
+        total_ht: parseFloat(i.amounts?.total_excl_tax || '0'),
+        remaining: parseFloat(i.amounts?.total_remaining_due_incl_tax || '0'),
       })),
     })
   }
