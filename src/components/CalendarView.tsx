@@ -110,9 +110,10 @@ function TaskChip({ task, profiles, onDelete, currentUserId }: {
 }
 
 /* ─── TASK MODAL ─────────────────────────────────────────────── */
-function TaskModal({ weekDate, rowKey, rowLabel, profiles, userId, onSave, onClose }: {
+function TaskModal({ weekDate, rowKey, rowLabel, profiles, userId, onSave, onClose, error }: {
   weekDate: Date; rowKey: string; rowLabel: string; profiles: Profile[]
   userId: string; onSave: (task: Omit<Task, 'id' | 'created_by'>) => void; onClose: () => void
+  error?: string
 }) {
   const [form, setForm] = useState({
     title: '', description: '', assigned_to: '', status: 'a_faire', color: ''
@@ -162,6 +163,7 @@ function TaskModal({ weekDate, rowKey, rowLabel, profiles, userId, onSave, onClo
             </div>
           </div>
         </div>
+        {error && <div className={styles.modalError}><i className="ti ti-alert-circle" /> {error}</div>}
         <div className={styles.modalFooter}>
           <button onClick={onClose} className={styles.cancelBtn}>Annuler</button>
           <button
@@ -184,10 +186,14 @@ export default function CalendarView({ supabase, userId, profile, myOnly = false
   const [numWeeks] = useState(8)
   const [addingCell, setAddingCell] = useState<{ week: Date; rowKey: string; rowLabel: string } | null>(null)
   const [filterUser, setFilterUser] = useState<string>(myOnly ? userId : '')
+  const [saveError, setSaveError] = useState('')
 
   useEffect(() => {
     supabase.from('tasks').select('*').then(({ data }) => setTasks(data || []))
-    fetch('/api/admin/users').then(r => r.json()).then(d => { if (Array.isArray(d)) setProfiles(d) })
+    // Load profiles directly from Supabase (no auth required)
+    supabase.from('profiles').select('*').order('full_name').then(({ data }) => {
+      if (data && data.length > 0) setProfiles(data)
+    })
   }, [])
 
   const weeks = Array.from({ length: numWeeks }, (_, i) => addWeeks(startWeek, i))
@@ -199,10 +205,14 @@ export default function CalendarView({ supabase, userId, profile, myOnly = false
   }
 
   const addTask = async (data: Omit<Task, 'id' | 'created_by'>) => {
+    setSaveError('')
     const { data: task, error } = await supabase.from('tasks')
       .insert({ ...data, created_by: userId, due_date: data.week_start })
       .select('*').single()
-    if (error || !task) return
+    if (error || !task) {
+      setSaveError(error?.message || 'Erreur — vérifiez que la migration SQL a été exécutée.')
+      return
+    }
     setTasks(ts => [...ts, task])
     setAddingCell(null)
 
@@ -325,7 +335,8 @@ export default function CalendarView({ supabase, userId, profile, myOnly = false
           profiles={allProfiles}
           userId={userId}
           onSave={addTask}
-          onClose={() => setAddingCell(null)}
+          onClose={() => { setAddingCell(null); setSaveError('') }}
+          error={saveError}
         />
       )}
     </div>
