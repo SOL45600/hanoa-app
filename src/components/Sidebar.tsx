@@ -14,6 +14,7 @@ interface Props {
   onDelete: (id: string) => void
   onRename: (id: string, label: string) => void
   onUsers: () => void
+  onCalendar: () => void
   profile: Profile
   onLogout: () => void
 }
@@ -89,7 +90,7 @@ function SectionNode({ node, depth, selected, onSelect, onDelete, onRename }: {
   )
 }
 
-export default function Sidebar({ tree, sections, selected, onSelect, onHome, onClose, onAddSection, onDelete, onRename, onUsers, profile, onLogout }: Props) {
+export default function Sidebar({ tree, sections, selected, onSelect, onHome, onClose, onAddSection, onDelete, onRename, onUsers, onCalendar, profile, onLogout }: Props) {
   return (
     <div className={styles.sidebar}>
       <div className={styles.header}>
@@ -126,6 +127,9 @@ export default function Sidebar({ tree, sections, selected, onSelect, onHome, on
         <div className={styles.footerInfo}>
           <span className={styles.footerName}>{profile.full_name}</span>
         </div>
+        <button onClick={onCalendar} title="Calendrier" className={styles.logoutBtn}>
+          <i className="ti ti-calendar" style={{ fontSize: 16 }} />
+        </button>
         <button onClick={onUsers} title="Utilisateurs" className={styles.logoutBtn}>
           <i className="ti ti-users" style={{ fontSize: 16 }} />
         </button>
