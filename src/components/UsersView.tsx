@@ -1,18 +1,13 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase'
 import { Profile } from '@/lib/types'
 import styles from './UsersView.module.css'
 
 const ROLE_LABELS: Record<string, string> = {
-  admin: 'Administrateur',
-  member: 'Membre',
-  readonly: 'Lecture seule',
+  admin: 'Administrateur', member: 'Membre', readonly: 'Lecture seule',
 }
 const ROLE_COLORS: Record<string, string> = {
-  admin: '#0f6e56',
-  member: '#185fa5',
-  readonly: '#888',
+  admin: '#0f6e56', member: '#185fa5', readonly: '#888',
 }
 const COLORS = ['#0f6e56', '#185fa5', '#ba7517', '#d85a30', '#6b4fbb', '#d6538f']
 
@@ -22,15 +17,17 @@ export default function UsersView({ currentUserId }: { currentUserId: string }) 
   const [showAdd, setShowAdd] = useState(false)
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState('')
-  const supabase = createClient()
+  const [msgType, setMsgType] = useState<'ok' | 'error'>('ok')
 
   const [form, setForm] = useState({
-    email: '', full_name: '', initials: '', color: COLORS[0], role: 'member'
+    email: '', full_name: '', initials: '', color: COLORS[0],
+    role: 'member', password: '',
   })
 
   const loadUsers = async () => {
-    const { data } = await supabase.from('profiles').select('*').order('full_name')
-    setUsers(data || [])
+    const res = await fetch('/api/admin/users')
+    const data = await res.json()
+    setUsers(Array.isArray(data) ? data : [])
     setLoading(false)
   }
 
@@ -40,18 +37,42 @@ export default function UsersView({ currentUserId }: { currentUserId: string }) 
     e.preventDefault()
     setSaving(true)
     setMsg('')
-    setMsg(`Pour créer ${form.full_name} :
-1. Supabase → Authentication → Users → "Add user" → "Create new user"
-2. Email : ${form.email} · Mot de passe : choisir · Cocher "Auto Confirm"
-3. Puis SQL Editor → exécuter :
-   UPDATE profiles SET full_name='${form.full_name}', initials='${form.initials || form.full_name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0,2)}', color='${form.color}', role='${form.role}' WHERE id=(SELECT id FROM auth.users WHERE email='${form.email}');`)
-    setShowAdd(false)
+    const res = await fetch('/api/admin/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(form),
+    })
+    const data = await res.json()
+    if (res.ok) {
+      setMsg(`✓ ${form.full_name} créé avec succès.`)
+      setMsgType('ok')
+      setShowAdd(false)
+      setForm({ email: '', full_name: '', initials: '', color: COLORS[0], role: 'member', password: '' })
+      await loadUsers()
+    } else {
+      setMsg(`Erreur : ${data.error}`)
+      setMsgType('error')
+    }
     setSaving(false)
   }
 
   const handleRoleChange = async (userId: string, role: string) => {
-    await supabase.from('profiles').update({ role }).eq('id', userId)
+    await fetch('/api/admin/users', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: userId, role }),
+    })
     setUsers(u => u.map(usr => usr.id === userId ? { ...usr, role: role as Profile['role'] } : usr))
+  }
+
+  const handleDelete = async (userId: string, name: string) => {
+    if (!confirm(`Supprimer ${name} ? Cette action est irréversible.`)) return
+    await fetch('/api/admin/users', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: userId }),
+    })
+    setUsers(u => u.filter(usr => usr.id !== userId))
   }
 
   function Avatar({ profile }: { profile: Profile }) {
@@ -78,9 +99,8 @@ export default function UsersView({ currentUserId }: { currentUserId: string }) 
         </button>
       </div>
 
-      {msg && <p className={styles.msg}>{msg}</p>}
+      {msg && <p className={`${styles.msg} ${msgType === 'error' ? styles.msgError : ''}`}>{msg}</p>}
 
-      {/* Add user form */}
       {showAdd && (
         <form className={styles.addForm} onSubmit={handleAdd}>
           <h3>Nouvel utilisateur</h3>
@@ -89,23 +109,23 @@ export default function UsersView({ currentUserId }: { currentUserId: string }) 
               <label>Email *</label>
               <input type="email" required value={form.email}
                 onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                placeholder="prenom@exemple.fr" />
+                placeholder="prenom@s-o-l.fr" />
             </div>
             <div className={styles.field}>
               <label>Nom complet *</label>
               <input type="text" required value={form.full_name}
                 onChange={e => {
                   const name = e.target.value
-                  const initials = name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
+                  const initials = name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2)
                   setForm(f => ({ ...f, full_name: name, initials }))
                 }}
                 placeholder="Prénom Nom" />
             </div>
             <div className={styles.field}>
-              <label>Initiales</label>
-              <input type="text" maxLength={2} value={form.initials}
-                onChange={e => setForm(f => ({ ...f, initials: e.target.value.toUpperCase() }))}
-                placeholder="PN" />
+              <label>Mot de passe temporaire *</label>
+              <input type="text" required value={form.password}
+                onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+                placeholder="Ex: Hanoa45600" />
             </div>
             <div className={styles.field}>
               <label>Rôle</label>
@@ -114,6 +134,12 @@ export default function UsersView({ currentUserId }: { currentUserId: string }) 
                 <option value="readonly">Lecture seule</option>
                 <option value="admin">Administrateur</option>
               </select>
+            </div>
+            <div className={styles.field}>
+              <label>Initiales</label>
+              <input type="text" maxLength={2} value={form.initials}
+                onChange={e => setForm(f => ({ ...f, initials: e.target.value.toUpperCase() }))}
+                placeholder="PN" />
             </div>
             <div className={styles.field}>
               <label>Couleur</label>
@@ -151,21 +177,26 @@ export default function UsersView({ currentUserId }: { currentUserId: string }) 
               </div>
               <div className={styles.roleCell}>
                 {u.id === currentUserId ? (
-                  <span className={styles.roleBadge} style={{ color: ROLE_COLORS[u.role || 'member'], background: ROLE_COLORS[u.role || 'member'] + '18' }}>
+                  <span className={styles.roleBadge}
+                    style={{ color: ROLE_COLORS[u.role || 'member'], background: ROLE_COLORS[u.role || 'member'] + '18' }}>
                     {ROLE_LABELS[u.role || 'member']}
                   </span>
                 ) : (
-                  <select
-                    className={styles.roleSelect}
+                  <select className={styles.roleSelect}
                     value={u.role || 'member'}
-                    onChange={e => handleRoleChange(u.id, e.target.value)}
-                  >
+                    onChange={e => handleRoleChange(u.id, e.target.value)}>
                     <option value="admin">Administrateur</option>
                     <option value="member">Membre</option>
                     <option value="readonly">Lecture seule</option>
                   </select>
                 )}
               </div>
+              {u.id !== currentUserId && (
+                <button className={styles.deleteBtn} onClick={() => handleDelete(u.id, u.full_name)}
+                  title="Supprimer l'utilisateur">
+                  <i className="ti ti-trash" style={{ fontSize: 14 }} />
+                </button>
+              )}
             </div>
           ))}
         </div>

@@ -1,7 +1,18 @@
-import { createServerClient } from '@supabase/ssr'
+import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
+import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+// Admin client uses secret key (server-side only, never exposed to browser)
+function makeAdminClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+}
+
+// Regular client for session check
 function makeSupabase() {
   const cookieStore = cookies()
   return createServerClient(
@@ -19,93 +30,63 @@ function makeSupabase() {
   )
 }
 
-// GET — list all users with their profiles
+// GET — list all profiles
 export async function GET() {
-  const supabase = makeSupabase()
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
-
-  const { data: profiles } = await supabase
-    .from('profiles')
-    .select('*')
-    .order('full_name')
-
-  return NextResponse.json(profiles || [])
+  const admin = makeAdminClient()
+  const { data, error } = await admin.from('profiles').select('*').order('full_name')
+  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+  return NextResponse.json(data || [])
 }
 
-// POST — invite a new user (admin only)
+// POST — create a new user
 export async function POST(req: NextRequest) {
-  const supabase = makeSupabase()
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
+  const admin = makeAdminClient()
+  const { email, full_name, initials, color, role, password } = await req.json()
 
-  // Check if current user is admin
-  const { data: myProfile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', session.user.id)
-    .single()
-
-  if (myProfile?.role !== 'admin') {
-    return NextResponse.json({ error: 'Accès réservé aux administrateurs' }, { status: 403 })
+  if (!email || !full_name || !password) {
+    return NextResponse.json({ error: 'Email, nom et mot de passe requis' }, { status: 400 })
   }
 
-  const { email, full_name, initials, color, role } = await req.json()
+  // Create auth user
+  const { data: userData, error: authError } = await admin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: { full_name, initials, color },
+  })
 
-  // Use admin API to create user
-  const adminRes = await fetch(
-    `${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/admin/users`,
-    {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
-        'apikey': process.env.SUPABASE_SERVICE_KEY!,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        email,
-        password: Math.random().toString(36).slice(2) + 'Aa1!',
-        email_confirm: true,
-        user_metadata: { full_name, initials, color },
-      }),
-    }
-  )
-
-  if (!adminRes.ok) {
-    const err = await adminRes.json()
-    return NextResponse.json({ error: err.message || 'Erreur création utilisateur' }, { status: 400 })
+  if (authError) {
+    return NextResponse.json({ error: authError.message }, { status: 400 })
   }
 
-  const newUser = await adminRes.json()
+  const userId = userData.user.id
 
-  // Update profile with role
-  await supabase.from('profiles').upsert({
-    id: newUser.id,
+  // Upsert profile
+  await admin.from('profiles').upsert({
+    id: userId,
     full_name,
     initials: initials || full_name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2),
     color: color || '#0f6e56',
     role: role || 'member',
   })
 
-  return NextResponse.json({ success: true, id: newUser.id })
+  return NextResponse.json({ success: true, id: userId })
 }
 
-// PATCH — update user role
+// PATCH — update role
 export async function PATCH(req: NextRequest) {
-  const supabase = makeSupabase()
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
-
-  const { id, role, full_name, initials, color } = await req.json()
-
-  const update: Record<string, string> = {}
-  if (role) update.role = role
-  if (full_name) update.full_name = full_name
-  if (initials) update.initials = initials
-  if (color) update.color = color
-
-  const { error } = await supabase.from('profiles').update(update).eq('id', id)
+  const admin = makeAdminClient()
+  const { id, role } = await req.json()
+  const { error } = await admin.from('profiles').update({ role }).eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+  return NextResponse.json({ success: true })
+}
 
+// DELETE — remove user
+export async function DELETE(req: NextRequest) {
+  const admin = makeAdminClient()
+  const { id } = await req.json()
+  await admin.auth.admin.deleteUser(id)
+  await admin.from('profiles').delete().eq('id', id)
   return NextResponse.json({ success: true })
 }

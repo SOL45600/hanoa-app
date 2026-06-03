@@ -45,6 +45,15 @@
 .rolesTitle { font-weight: 500; color: var(--text); margin-bottom: 8px; display: flex; align-items: center; gap: 5px; }
 .rolesInfo p { margin-bottom: 4px; }
 
+.msgError { background: #faece7 !important; color: #d85a30 !important; }
+
+.deleteBtn {
+  width: 30px; height: 30px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  color: #ccc; transition: all 0.12s; flex-shrink: 0; margin-left: 4px;
+}
+.deleteBtn:hover { color: #d85a30; background: #faece7; }
+
 @media (max-width: 640px) {
   .formGrid { grid-template-columns: 1fr; }
   .header { flex-direction: column; }
