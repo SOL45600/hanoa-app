@@ -401,7 +401,7 @@ export default function WeenatView() {
               </div>
               <div className={styles.cardRight}>
                 <StatusBadge latest={summary.weather.latest} />
-                <i className="ti ti-chevron-right" style={{ color: '#888', marginTop: 8 }} />
+                <span className={styles.seeBtn}>Voir les données <i className="ti ti-chevron-right" /></span>
               </div>
             </button>
           </div>
@@ -428,7 +428,7 @@ export default function WeenatView() {
                   </div>
                   <div className={styles.cardRight}>
                     <StatusBadge latest={t.latest} />
-                    <i className="ti ti-chevron-right" style={{ color: '#888', marginTop: 8 }} />
+                    <span className={styles.seeBtn}>Voir <i className="ti ti-chevron-right" /></span>
                   </div>
                 </button>
               ))}
