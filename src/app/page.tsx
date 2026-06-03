@@ -1,38 +1,35 @@
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
-import { redirect } from 'next/navigation'
+'use client'
+import { useEffect, useState } from 'react'
+import { createClient } from '@/lib/supabase'
 import AppShell from '@/components/AppShell'
+import { User } from '@supabase/supabase-js'
+import { Profile } from '@/lib/types'
+import { Section } from '@/lib/types'
 
-export default async function HomePage() {
-  const cookieStore = cookies()
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll()
-        },
-        setAll() {},
-      },
-    }
-  )
+export default function HomePage() {
+  const [user, setUser] = useState<User | null>(null)
+  const [profile, setProfile] = useState<Profile | null>(null)
+  const [sections, setSections] = useState<Section[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!session) {
+        window.location.href = '/login'
+        return
+      }
+      setUser(session.user as User)
+      const { data: p } = await supabase.from('profiles').select('*').eq('id', session.user.id).single()
+      const { data: s } = await supabase.from('sections').select('*').order('sort_order')
+      setProfile(p)
+      setSections(s || [])
+      setLoading(false)
+    })
+  }, [])
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
-    .single()
+  if (loading) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: '#666' }}>Chargement…</div>
+  if (!user || !profile) return null
 
-  if (!profile) redirect('/login')
-
-  const { data: sections } = await supabase
-    .from('sections')
-    .select('*')
-    .order('sort_order')
-
-  return <AppShell user={user} profile={profile} initialSections={sections || []} />
+  return <AppShell user={user} profile={profile} initialSections={sections} />
 }
