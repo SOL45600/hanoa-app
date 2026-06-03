@@ -12,6 +12,7 @@ interface Props {
   sections?: Section[]
   onCalendar?: () => void
   onCommandes?: () => void
+  onNavigateSection?: (sectionId: string) => void
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -48,7 +49,7 @@ const TASK_CATEGORIES: Record<string, { icon: string; color: string }> = {
   autre:         { icon: 'ti-calendar',   color: '#5f5e5a' },
 }
 
-export default function HomeView({ tree, onSelect, supabase, profile, sections, onCalendar, onCommandes }: Props) {
+export default function HomeView({ tree, onSelect, supabase, profile, sections, onCalendar, onCommandes, onNavigateSection }: Props) {
   const [orders, setOrders] = useState<{ status: string; order_number: string; client: string; id: string }[]>([])
   const [tasks, setTasks] = useState<{ id: string; title: string; due_date: string; category: string; status: string }[]>([])
   const [myTasks, setMyTasks] = useState<{ id: string; title: string; row_key: string; week_start: string; status: string }[]>([])
@@ -210,12 +211,15 @@ export default function HomeView({ tree, onSelect, supabase, profile, sections, 
               {posts.map(p => {
                 const hasMention = p.content.includes('@')
                 return (
-                  <div key={p.id} className={styles.postRow}>
+                  <button key={p.id} className={styles.postRow}
+                    onClick={() => onNavigateSection?.(p.section_id)}
+                    title="Voir dans la rubrique">
                     {hasMention && <i className="ti ti-at" style={{ color: '#0f6e56', fontSize: 14, flexShrink: 0 }} />}
                     <span className={styles.postSection}>{sectionMap.get(p.section_id) || '…'}</span>
                     <span className={styles.postContent}>{p.content.slice(0, 80)}{p.content.length > 80 ? '…' : ''}</span>
                     <span className={styles.postDate}>{fmtDate(p.created_at)}</span>
-                  </div>
+                    <i className="ti ti-arrow-right" style={{ fontSize: 12, color: '#ccc', flexShrink: 0 }} />
+                  </button>
                 )
               })}
             </div>

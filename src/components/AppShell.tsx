@@ -127,6 +127,10 @@ export default function AppShell({ user, profile, initialSections }: Props) {
                 const cmd = sections.find(s => s.label.toLowerCase() === 'commandes')
                 if (cmd) setSelected(cmd as SectionTree)
               }}
+              onNavigateSection={(sectionId) => {
+                const sec = sections.find(s => s.id === sectionId)
+                if (sec) { setSelected(sec as SectionTree); setView('feed') }
+              }}
             />
           )}
           {!showUsers && selected && selected.label.toLowerCase().includes('irrigation') && <WeenatView />}
