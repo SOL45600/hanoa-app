@@ -14,7 +14,7 @@ interface DashboardData {
   }[]
 }
 
-function fmt€(n: number) { return n.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }) }
+function fmtEur(n: number) { return n.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }) }
 function fmtDate(d: string) { return new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) }
 
 export default function FinanceView({ profile }: { profile: Profile }) {
@@ -59,7 +59,7 @@ export default function FinanceView({ profile }: { profile: Profile }) {
       <div className={styles.kpis}>
         <div className={styles.kpi}>
           <i className="ti ti-trending-up" style={{ color: '#0f6e56' }} />
-          <span className={styles.kpiValue}>{fmt€(data.monthly_ca)}</span>
+          <span className={styles.kpiValue}>{fmtEur(data.monthly_ca)}</span>
           <span className={styles.kpiLabel}>CA ce mois (HT)</span>
         </div>
         <div className={styles.kpi}>
@@ -70,7 +70,7 @@ export default function FinanceView({ profile }: { profile: Profile }) {
         <div className={styles.kpi} style={{ borderColor: data.unpaid_count > 0 ? '#d85a3044' : undefined }}>
           <i className="ti ti-clock-dollar" style={{ color: data.unpaid_count > 0 ? '#d85a30' : '#888' }} />
           <span className={styles.kpiValue} style={{ color: data.unpaid_count > 0 ? '#d85a30' : undefined }}>
-            {fmt€(data.unpaid_amount)}
+            {fmtEur(data.unpaid_amount)}
           </span>
           <span className={styles.kpiLabel}>{data.unpaid_count} facture{data.unpaid_count > 1 ? 's' : ''} impayée{data.unpaid_count > 1 ? 's' : ''}</span>
         </div>
@@ -94,10 +94,10 @@ export default function FinanceView({ profile }: { profile: Profile }) {
                 <tr key={inv.id}>
                   <td className={styles.tdNum}>{inv.number}</td>
                   <td>{fmtDate(inv.date)}</td>
-                  <td>{fmt€(inv.total_ht)}</td>
+                  <td>{fmtEur(inv.total_ht)}</td>
                   <td>
                     <span className={inv.paid ? styles.paid : styles.unpaid}>
-                      {inv.paid ? '✓ Payée' : `${fmt€(inv.remaining)} dû`}
+                      {inv.paid ? '✓ Payée' : `${fmtEur(inv.remaining)} dû`}
                     </span>
                   </td>
                 </tr>
