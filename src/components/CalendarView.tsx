@@ -1,96 +1,229 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { SupabaseClient } from '@supabase/supabase-js'
-import { Profile, Section } from '@/lib/types'
+import { Profile } from '@/lib/types'
 import styles from './CalendarView.module.css'
 
+/* ─── CONFIG ─────────────────────────────────────────────────── */
+const PLANNING_ROWS = [
+  {
+    group: 'Les vergers', icon: 'ti-tree', color: '#0f6e56',
+    rows: [
+      { key: 'vergers_irrigation',   label: 'Irrigation' },
+      { key: 'vergers_ferti_phyto',  label: 'Ferti-phyto' },
+      { key: 'vergers_entretien',    label: 'Entretien' },
+      { key: 'vergers_divers',       label: 'Divers' },
+    ]
+  },
+  {
+    group: 'Transformation', icon: 'ti-settings', color: '#185fa5',
+    rows: [
+      { key: 'transfo_stabilisation',    label: 'Stabilisation' },
+      { key: 'transfo_laboratoire',      label: 'Laboratoire' },
+      { key: 'transfo_conditionnement',  label: 'Conditionnement' },
+    ]
+  },
+  {
+    group: 'Divers', icon: 'ti-layout-grid', color: '#888',
+    rows: [
+      { key: 'divers', label: 'Divers' },
+    ]
+  },
+]
+
+const ROW_KEYS = PLANNING_ROWS.flatMap(g => g.rows.map(r => r.key))
+
+/* ─── UTILS ─────────────────────────────────────────────────── */
+function getMondayOfWeek(date: Date): Date {
+  const d = new Date(date)
+  const day = d.getDay()
+  const diff = (day === 0 ? -6 : 1 - day)
+  d.setDate(d.getDate() + diff)
+  d.setHours(0, 0, 0, 0)
+  return d
+}
+
+function addWeeks(date: Date, n: number): Date {
+  const d = new Date(date)
+  d.setDate(d.getDate() + n * 7)
+  return d
+}
+
+function weekKey(date: Date): string {
+  return date.toISOString().slice(0, 10)
+}
+
+function fmtWeekHeader(date: Date): { num: string; range: string } {
+  const mon = new Date(date)
+  const sun = new Date(date)
+  sun.setDate(sun.getDate() + 6)
+  const weekNum = Math.ceil(((date.getTime() - new Date(date.getFullYear(), 0, 1).getTime()) / 86400000 + 1) / 7)
+  const fmt = (d: Date) => d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
+  return { num: `S${weekNum}`, range: `${fmt(mon)} – ${fmt(sun)}` }
+}
+
+function isThisWeek(date: Date): boolean {
+  return weekKey(getMondayOfWeek(new Date())) === weekKey(date)
+}
+
+/* ─── TYPES ─────────────────────────────────────────────────── */
 interface Task {
   id: string
   title: string
   description?: string
-  section_id?: string
+  row_key: string
+  week_start: string
   assigned_to?: string
   created_by: string
-  due_date: string
-  due_time?: string
-  category: string
   status: string
-  created_at: string
+  color?: string
 }
 
-const CATEGORIES = [
-  { key: 'traitement',  label: 'Traitement phyto', color: '#d85a30', icon: 'ti-bug' },
-  { key: 'recolte',     label: 'Récolte',           color: '#ba7517', icon: 'ti-scissors' },
-  { key: 'maintenance', label: 'Maintenance',       color: '#185fa5', icon: 'ti-tool' },
-  { key: 'irrigation',  label: 'Irrigation',        color: '#0f6e56', icon: 'ti-droplet' },
-  { key: 'fertilisation', label: 'Fertilisation',   color: '#6b4fbb', icon: 'ti-plant-2' },
-  { key: 'livraison',   label: 'Livraison',         color: '#888',    icon: 'ti-truck' },
-  { key: 'autre',       label: 'Autre',             color: '#5f5e5a', icon: 'ti-calendar' },
-]
-
-const STATUSES = {
-  a_faire:   { label: 'À faire',    color: '#ba7517', bg: '#fef3e2' },
-  en_cours:  { label: 'En cours',   color: '#185fa5', bg: '#e8f4fd' },
-  fait:      { label: 'Fait',       color: '#0f6e56', bg: '#e8f5ee' },
+interface Props {
+  supabase: SupabaseClient
+  userId: string
+  profile: Profile
+  myOnly?: boolean
 }
 
-const MONTHS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']
-const DAYS = ['L','M','M','J','V','S','D']
-
-function getCat(key: string) { return CATEGORIES.find(c => c.key === key) || CATEGORIES[CATEGORIES.length - 1] }
-function fmtTime(t?: string) { return t ? t.slice(0, 5) : '' }
-
-export default function CalendarView({ supabase, userId, profile, sections }: {
-  supabase: SupabaseClient; userId: string; profile: Profile; sections: Section[]
+/* ─── TASK CHIP ──────────────────────────────────────────────── */
+function TaskChip({ task, profiles, onDelete, currentUserId }: {
+  task: Task; profiles: Profile[]; onDelete: () => void; currentUserId: string
 }) {
-  const today = new Date()
-  const [year, setYear] = useState(today.getFullYear())
-  const [month, setMonth] = useState(today.getMonth())
-  const [tasks, setTasks] = useState<Task[]>([])
-  const [selectedDay, setSelectedDay] = useState<number | null>(today.getDate())
-  const [showForm, setShowForm] = useState(false)
-  const [profiles, setProfiles] = useState<Profile[]>([])
+  const assignee = profiles.find(p => p.id === task.assigned_to)
+  const isDone = task.status === 'fait'
+  return (
+    <div className={`${styles.chip} ${isDone ? styles.chipDone : ''}`}
+      style={{ borderLeftColor: task.color || assignee?.color || '#0f6e56' }}>
+      <span className={styles.chipTitle}>{task.title}</span>
+      {assignee && (
+        <span className={styles.chipAssignee} style={{ background: (assignee.color || '#0f6e56') + '22', color: assignee.color || '#0f6e56' }}>
+          {assignee.initials}
+        </span>
+      )}
+      {(task.created_by === currentUserId || !task.assigned_to) && (
+        <button className={styles.chipDelete} onClick={e => { e.stopPropagation(); onDelete() }}>×</button>
+      )}
+    </div>
+  )
+}
+
+/* ─── TASK MODAL ─────────────────────────────────────────────── */
+function TaskModal({ weekDate, rowKey, rowLabel, profiles, userId, onSave, onClose }: {
+  weekDate: Date; rowKey: string; rowLabel: string; profiles: Profile[]
+  userId: string; onSave: (task: Omit<Task, 'id' | 'created_by'>) => void; onClose: () => void
+}) {
   const [form, setForm] = useState({
-    title: '', description: '', section_id: '', assigned_to: '',
-    due_date: today.toISOString().slice(0, 10), due_time: '',
-    category: 'autre', status: 'a_faire',
+    title: '', description: '', assigned_to: '', status: 'a_faire', color: ''
   })
+  const { num, range } = fmtWeekHeader(weekDate)
+
+  return (
+    <div className={styles.modalOverlay} onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className={styles.modal}>
+        <div className={styles.modalHeader}>
+          <div>
+            <span className={styles.modalWeek}>{num} · {range}</span>
+            <h3>{rowLabel}</h3>
+          </div>
+          <button onClick={onClose} className={styles.modalClose}>✕</button>
+        </div>
+        <div className={styles.modalBody}>
+          <div className={styles.field}>
+            <label>Tâche *</label>
+            <input autoFocus required value={form.title}
+              onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+              placeholder="Décrivez la tâche…"
+              onKeyDown={e => { if (e.key === 'Enter' && form.title.trim()) onSave({ ...form, row_key: rowKey, week_start: weekKey(weekDate) }) }}
+            />
+          </div>
+          <div className={styles.field}>
+            <label>Détails</label>
+            <textarea value={form.description}
+              onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+              rows={2} placeholder="Notes, quantités, instructions…" />
+          </div>
+          <div className={styles.formRow}>
+            <div className={styles.field}>
+              <label>Assigner à</label>
+              <select value={form.assigned_to} onChange={e => setForm(f => ({ ...f, assigned_to: e.target.value }))}>
+                <option value="">— Non assigné —</option>
+                {profiles.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
+              </select>
+            </div>
+            <div className={styles.field}>
+              <label>Statut</label>
+              <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}>
+                <option value="a_faire">À faire</option>
+                <option value="en_cours">En cours</option>
+                <option value="fait">Fait ✓</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div className={styles.modalFooter}>
+          <button onClick={onClose} className={styles.cancelBtn}>Annuler</button>
+          <button
+            disabled={!form.title.trim()}
+            onClick={() => onSave({ ...form, row_key: rowKey, week_start: weekKey(weekDate) })}
+            className={styles.saveBtn}>
+            Ajouter
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ─── MAIN ───────────────────────────────────────────────────── */
+export default function CalendarView({ supabase, userId, profile, myOnly = false }: Props) {
+  const [tasks, setTasks] = useState<Task[]>([])
+  const [profiles, setProfiles] = useState<Profile[]>([])
+  const [startWeek, setStartWeek] = useState(() => getMondayOfWeek(new Date()))
+  const [numWeeks] = useState(8)
+  const [addingCell, setAddingCell] = useState<{ week: Date; rowKey: string; rowLabel: string } | null>(null)
+  const [filterUser, setFilterUser] = useState<string>(myOnly ? userId : '')
 
   useEffect(() => {
     supabase.from('tasks').select('*').then(({ data }) => setTasks(data || []))
     fetch('/api/admin/users').then(r => r.json()).then(d => { if (Array.isArray(d)) setProfiles(d) })
   }, [])
 
-  const daysInMonth = new Date(year, month + 1, 0).getDate()
-  const firstDay = (new Date(year, month, 1).getDay() + 6) % 7 // Monday = 0
+  const weeks = Array.from({ length: numWeeks }, (_, i) => addWeeks(startWeek, i))
 
-  const getTasksForDay = (day: number) => {
-    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-    return tasks.filter(t => t.due_date === dateStr)
+  const getTasksForCell = (rowKey: string, week: Date) => {
+    const wk = weekKey(week)
+    return tasks.filter(t => t.row_key === rowKey && t.week_start === wk &&
+      (!filterUser || t.assigned_to === filterUser))
   }
 
-  const dayTasks = selectedDay ? getTasksForDay(selectedDay) : []
-
-  const prevMonth = () => { if (month === 0) { setMonth(11); setYear(y => y - 1) } else setMonth(m => m - 1) }
-  const nextMonth = () => { if (month === 11) { setMonth(0); setYear(y => y + 1) } else setMonth(m => m + 1) }
-
-  const submitTask = async (e: React.FormEvent) => {
-    e.preventDefault()
-    const { data, error } = await supabase.from('tasks')
-      .insert({ ...form, created_by: userId, section_id: form.section_id || null, assigned_to: form.assigned_to || null })
+  const addTask = async (data: Omit<Task, 'id' | 'created_by'>) => {
+    const { data: task, error } = await supabase.from('tasks')
+      .insert({ ...data, created_by: userId, due_date: data.week_start })
       .select('*').single()
-    if (!error && data) {
-      setTasks(ts => [...ts, data])
-      setShowForm(false)
-      setForm(f => ({ ...f, title: '', description: '' }))
-    }
-  }
+    if (error || !task) return
+    setTasks(ts => [...ts, task])
+    setAddingCell(null)
 
-  const toggleStatus = async (task: Task) => {
-    const order = ['a_faire', 'en_cours', 'fait']
-    const next = order[(order.indexOf(task.status) + 1) % order.length]
-    await supabase.from('tasks').update({ status: next }).eq('id', task.id)
-    setTasks(ts => ts.map(t => t.id === task.id ? { ...t, status: next } : t))
+    // Notify assigned user
+    if (data.assigned_to && data.assigned_to !== userId) {
+      const assignee = profiles.find(p => p.id === data.assigned_to)
+      if (assignee?.email) {
+        const wk = fmtWeekHeader(new Date(data.week_start))
+        const rowLabel = PLANNING_ROWS.flatMap(g => g.rows).find(r => r.key === data.row_key)?.label || ''
+        fetch('/api/notify/assign', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            assigneeId: data.assigned_to,
+            assignerName: profile.full_name,
+            taskTitle: data.title,
+            weekLabel: `${wk.num} (${wk.range})`,
+            rowLabel,
+          }),
+        }).catch(() => {})
+      }
+    }
   }
 
   const deleteTask = async (id: string) => {
@@ -98,160 +231,101 @@ export default function CalendarView({ supabase, userId, profile, sections }: {
     setTasks(ts => ts.filter(t => t.id !== id))
   }
 
+  const allProfiles = profiles
+
   return (
     <div className={styles.container}>
       {/* Header */}
       <div className={styles.header}>
-        <h2>Calendrier des tâches</h2>
-        <button className={styles.addBtn} onClick={() => {
-          setForm(f => ({ ...f, due_date: selectedDay ? `${year}-${String(month+1).padStart(2,'0')}-${String(selectedDay).padStart(2,'0')}` : f.due_date }))
-          setShowForm(true)
-        }}>
-          <i className="ti ti-plus" /> Nouvelle tâche
-        </button>
+        <div className={styles.headerLeft}>
+          <button onClick={() => setStartWeek(w => addWeeks(w, -4))} className={styles.navBtn}>
+            <i className="ti ti-chevron-left" />
+          </button>
+          <button onClick={() => setStartWeek(getMondayOfWeek(new Date()))} className={styles.todayBtn}>
+            Aujourd'hui
+          </button>
+          <button onClick={() => setStartWeek(w => addWeeks(w, 4))} className={styles.navBtn}>
+            <i className="ti ti-chevron-right" />
+          </button>
+          <span className={styles.periodLabel}>
+            {fmtWeekHeader(startWeek).range.split('–')[0].trim()} — {fmtWeekHeader(addWeeks(startWeek, numWeeks - 1)).range.split('–')[1].trim()}
+          </span>
+        </div>
+        <div className={styles.headerRight}>
+          <select className={styles.filterSelect}
+            value={filterUser}
+            onChange={e => setFilterUser(e.target.value)}>
+            <option value="">Tous</option>
+            {allProfiles.map(p => (
+              <option key={p.id} value={p.id}>{p.full_name}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
-      <div className={styles.layout}>
-        {/* Calendar */}
-        <div className={styles.cal}>
-          <div className={styles.calNav}>
-            <button onClick={prevMonth}><i className="ti ti-chevron-left" /></button>
-            <span>{MONTHS[month]} {year}</span>
-            <button onClick={nextMonth}><i className="ti ti-chevron-right" /></button>
-          </div>
-          <div className={styles.calGrid}>
-            {DAYS.map((d, i) => <div key={i} className={styles.calDayName}>{d}</div>)}
-            {Array.from({ length: firstDay }).map((_, i) => <div key={`e${i}`} />)}
-            {Array.from({ length: daysInMonth }).map((_, i) => {
-              const day = i + 1
-              const dayTasks = getTasksForDay(day)
-              const isToday = day === today.getDate() && month === today.getMonth() && year === today.getFullYear()
-              const isSel = day === selectedDay
-              return (
-                <button key={day} className={`${styles.calDay} ${isToday ? styles.today : ''} ${isSel ? styles.selected : ''}`}
-                  onClick={() => setSelectedDay(day)}>
-                  <span>{day}</span>
-                  {dayTasks.length > 0 && (
-                    <div className={styles.calDots}>
-                      {dayTasks.slice(0, 3).map(t => (
-                        <span key={t.id} className={styles.calDot}
-                          style={{ background: getCat(t.category).color }} />
-                      ))}
-                    </div>
-                  )}
-                </button>
-              )
-            })}
-          </div>
-
-          {/* Legend */}
-          <div className={styles.legend}>
-            {CATEGORIES.map(c => (
-              <span key={c.key} className={styles.legendItem}>
-                <span style={{ background: c.color, width: 8, height: 8, borderRadius: '50%', display: 'inline-block', flexShrink: 0 }} />
-                {c.label}
-              </span>
-            ))}
-          </div>
-        </div>
-
-        {/* Day detail */}
-        <div className={styles.dayDetail}>
-          {selectedDay && (
-            <>
-              <div className={styles.dayTitle}>
-                {selectedDay} {MONTHS[month]} {year}
-                <span className={styles.taskCount}>{dayTasks.length} tâche{dayTasks.length > 1 ? 's' : ''}</span>
-              </div>
-              {dayTasks.length === 0 && (
-                <div className={styles.empty}>
-                  <i className="ti ti-calendar-off" />
-                  <span>Aucune tâche ce jour</span>
-                </div>
-              )}
-              {dayTasks.map(t => {
-                const cat = getCat(t.category)
-                const st = STATUSES[t.status as keyof typeof STATUSES] || STATUSES.a_faire
+      {/* Grid */}
+      <div className={styles.gridWrap}>
+        <table className={styles.grid}>
+          <thead>
+            <tr>
+              <th className={styles.thGroup}></th>
+              <th className={styles.thRow}></th>
+              {weeks.map(w => {
+                const { num, range } = fmtWeekHeader(w)
                 return (
-                  <div key={t.id} className={styles.taskCard}>
-                    <div className={styles.taskCatDot} style={{ background: cat.color }} />
-                    <div className={styles.taskBody}>
-                      <div className={styles.taskHeader}>
-                        <span className={styles.taskTitle}>{t.title}</span>
-                        <button className={styles.taskDelete} onClick={() => deleteTask(t.id)} title="Supprimer">
-                          <i className="ti ti-trash" style={{ fontSize: 12 }} />
-                        </button>
-                      </div>
-                      {t.description && <p className={styles.taskDesc}>{t.description}</p>}
-                      <div className={styles.taskMeta}>
-                        {t.due_time && <span><i className="ti ti-clock" /> {fmtTime(t.due_time)}</span>}
-                        <span style={{ color: cat.color }}><i className={`ti ${cat.icon}`} /> {cat.label}</span>
-                        <button className={styles.taskStatus} style={{ color: st.color, background: st.bg }}
-                          onClick={() => toggleStatus(t)}>
-                          {st.label}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
+                  <th key={weekKey(w)} className={`${styles.thWeek} ${isThisWeek(w) ? styles.thToday : ''}`}>
+                    <div className={styles.weekNum}>{num}</div>
+                    <div className={styles.weekRange}>{range}</div>
+                  </th>
                 )
               })}
-            </>
-          )}
-        </div>
+            </tr>
+          </thead>
+          <tbody>
+            {PLANNING_ROWS.map((group, gi) => (
+              group.rows.map((row, ri) => (
+                <tr key={row.key} className={ri === 0 ? styles.trFirst : ''}>
+                  {ri === 0 && (
+                    <td rowSpan={group.rows.length} className={styles.tdGroup}>
+                      <div className={styles.groupLabel} style={{ color: group.color }}>
+                        <i className={`ti ${group.icon}`} />
+                        {group.group}
+                      </div>
+                    </td>
+                  )}
+                  <td className={styles.tdRow}>{row.label}</td>
+                  {weeks.map(w => {
+                    const cellTasks = getTasksForCell(row.key, w)
+                    return (
+                      <td key={weekKey(w)}
+                        className={`${styles.tdCell} ${isThisWeek(w) ? styles.tdToday : ''}`}
+                        onClick={() => setAddingCell({ week: w, rowKey: row.key, rowLabel: row.label })}>
+                        {cellTasks.map(t => (
+                          <TaskChip key={t.id} task={t} profiles={allProfiles}
+                            onDelete={() => deleteTask(t.id)} currentUserId={userId} />
+                        ))}
+                        <div className={styles.cellAdd}>+</div>
+                      </td>
+                    )
+                  })}
+                </tr>
+              ))
+            ))}
+          </tbody>
+        </table>
       </div>
 
-      {/* New task form */}
-      {showForm && (
-        <div className={styles.formOverlay} onClick={e => e.target === e.currentTarget && setShowForm(false)}>
-          <form className={styles.form} onSubmit={submitTask}>
-            <div className={styles.formHeader}>
-              <h3>Nouvelle tâche</h3>
-              <button type="button" onClick={() => setShowForm(false)}>✕</button>
-            </div>
-            <div className={styles.formGrid}>
-              <div className={styles.field} style={{ gridColumn: '1/-1' }}>
-                <label>Titre *</label>
-                <input required value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="Ex: Traitement fongicide parcelle D" />
-              </div>
-              <div className={styles.field}>
-                <label>Date *</label>
-                <input type="date" required value={form.due_date} onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))} />
-              </div>
-              <div className={styles.field}>
-                <label>Heure</label>
-                <input type="time" value={form.due_time} onChange={e => setForm(f => ({ ...f, due_time: e.target.value }))} />
-              </div>
-              <div className={styles.field}>
-                <label>Catégorie</label>
-                <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}>
-                  {CATEGORIES.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
-                </select>
-              </div>
-              <div className={styles.field}>
-                <label>Assigner à</label>
-                <select value={form.assigned_to} onChange={e => setForm(f => ({ ...f, assigned_to: e.target.value }))}>
-                  <option value="">— Non assigné —</option>
-                  {profiles.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
-                </select>
-              </div>
-              <div className={styles.field}>
-                <label>Rubrique liée</label>
-                <select value={form.section_id} onChange={e => setForm(f => ({ ...f, section_id: e.target.value }))}>
-                  <option value="">— Aucune —</option>
-                  {sections.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
-                </select>
-              </div>
-              <div className={styles.field} style={{ gridColumn: '1/-1' }}>
-                <label>Description</label>
-                <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={2} placeholder="Détails, quantités, notes…" />
-              </div>
-            </div>
-            <div className={styles.formActions}>
-              <button type="button" onClick={() => setShowForm(false)} className={styles.cancelBtn}>Annuler</button>
-              <button type="submit" className={styles.saveBtn}>Créer la tâche</button>
-            </div>
-          </form>
-        </div>
+      {/* Modal */}
+      {addingCell && (
+        <TaskModal
+          weekDate={addingCell.week}
+          rowKey={addingCell.rowKey}
+          rowLabel={addingCell.rowLabel}
+          profiles={allProfiles}
+          userId={userId}
+          onSave={addTask}
+          onClose={() => setAddingCell(null)}
+        />
       )}
     </div>
   )

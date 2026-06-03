@@ -104,12 +104,13 @@ export default function Sidebar({ tree, sections, selected, onSelect, onHome, on
       </div>
 
       <div className={styles.nav}>
-        <button
-          className={`${styles.homeBtn} ${!selected ? styles.homeBtnActive : ''}`}
-          onClick={onHome}
-        >
+        <button className={`${styles.homeBtn} ${!selected ? styles.homeBtnActive : ''}`} onClick={onHome}>
           <i className="ti ti-home" style={{ fontSize: 15 }} />
           <span>Accueil</span>
+        </button>
+        <button className={styles.homeBtn} onClick={onCalendar}>
+          <i className="ti ti-calendar" style={{ fontSize: 15 }} />
+          <span>Planning</span>
         </button>
         <p className={styles.navLabel}>Rubriques</p>
         {tree.map(node => (

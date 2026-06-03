@@ -51,6 +51,7 @@ const TASK_CATEGORIES: Record<string, { icon: string; color: string }> = {
 export default function HomeView({ tree, onSelect, supabase, profile, sections, onCalendar, onCommandes }: Props) {
   const [orders, setOrders] = useState<{ status: string; order_number: string; client: string; id: string }[]>([])
   const [tasks, setTasks] = useState<{ id: string; title: string; due_date: string; category: string; status: string }[]>([])
+  const [myTasks, setMyTasks] = useState<{ id: string; title: string; row_key: string; week_start: string; status: string }[]>([])
   const [posts, setPosts] = useState<{ id: string; content: string; section_id: string; created_at: string }[]>([])
 
   const hour = new Date().getHours()
@@ -60,6 +61,10 @@ export default function HomeView({ tree, onSelect, supabase, profile, sections, 
 
   useEffect(() => {
     if (!supabase) return
+    supabase.from('tasks').select('id, title, row_key, week_start, status')
+      .eq('assigned_to', profile?.id || '').neq('status', 'fait')
+      .gte('week_start', todayStr).order('week_start').limit(5)
+      .then(({ data }) => setMyTasks(data || []))
     supabase.from('orders').select('id, status, order_number, client')
       .neq('status', 'livre').order('created_at', { ascending: false })
       .then(({ data }) => setOrders(data || []))
@@ -164,6 +169,33 @@ export default function HomeView({ tree, onSelect, supabase, profile, sections, 
             </div>
           )}
         </div>
+
+        {/* ── MON PLANNING ── */}
+        {myTasks.length > 0 && (
+          <div className={styles.widget}>
+            <div className={styles.widgetHeader}>
+              <i className="ti ti-user-check" style={{ color: profile?.color || '#0f6e56' }} />
+              <span>Mes tâches assignées</span>
+              <button className={styles.widgetLink} onClick={onCalendar}>Planning →</button>
+            </div>
+            <div className={styles.taskList}>
+              {myTasks.map(t => {
+                const mon = new Date(t.week_start)
+                const sun = new Date(mon); sun.setDate(sun.getDate() + 6)
+                const rowLabel = t.row_key?.split('_').slice(1).join(' ') || t.row_key || ''
+                return (
+                  <button key={t.id} className={styles.taskRow} onClick={onCalendar}>
+                    <span className={styles.taskDot} style={{ background: profile?.color || '#0f6e56' }} />
+                    <span className={styles.taskTitle}>{t.title}</span>
+                    <span className={styles.taskDate}>
+                      {mon.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         {/* ── ACTIVITÉ RÉCENTE ── */}
         <div className={styles.widget} style={{ gridColumn: '1 / -1' }}>
