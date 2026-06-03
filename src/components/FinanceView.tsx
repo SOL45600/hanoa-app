@@ -107,6 +107,37 @@ export default function FinanceView({ profile }: { profile: Profile }) {
         </div>
       </div>
 
+      {/* Backup section */}
+      <div className={styles.backupSection}>
+        <div className={styles.backupHeader}>
+          <i className="ti ti-database-export" style={{ color: '#185fa5', fontSize: 20 }} />
+          <div>
+            <div className={styles.backupTitle}>Sauvegarde des données</div>
+            <div className={styles.backupSub}>Exporte toute la base de données en JSON (messages, commandes, tâches…)</div>
+          </div>
+        </div>
+        <button className={styles.backupBtn} onClick={async () => {
+          const res = await fetch('/api/backup', {
+            headers: { 'x-backup-key': '' } // Will 401, needs key
+          })
+          if (res.status === 401) {
+            // Download via direct URL with key from prompt
+            const key = prompt('Clé de sauvegarde (CRON_SECRET_ALERT_WEENAT dans Vercel) :')
+            if (!key) return
+            const r = await fetch('/api/backup', { headers: { 'x-backup-key': key } })
+            if (!r.ok) { alert('Clé incorrecte'); return }
+            const blob = await r.blob()
+            const date = new Date().toISOString().slice(0, 10)
+            const a = document.createElement('a')
+            a.href = URL.createObjectURL(blob)
+            a.download = `backup-projet-sol-${date}.json`
+            a.click()
+          }
+        }}>
+          <i className="ti ti-download" /> Télécharger la sauvegarde JSON
+        </button>
+      </div>
+
       <p className={styles.note}>
         <i className="ti ti-shield-lock" /> Données visibles uniquement par les administrateurs
       </p>
