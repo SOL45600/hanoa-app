@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 const API_KEY = process.env.WEENAT_API_KEY!
 const BASE = 'https://api.weenat.com/v3'
 
-export const DEVICES = {
+const DEVICES = {
   weather: { id: 76938, label: 'Station météo', model: 'P+', metrics: ['T', 'RR', 'U', 'THI'] },
   tensiometers: [
     { id: 76945, label: 'Sonde A — Parcelle D', model: 'CHP-30/60', depths: [30, 60], metrics: ['HPOT', 'T_CAL'] },
