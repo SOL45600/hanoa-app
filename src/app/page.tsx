@@ -19,6 +19,10 @@ export default function HomePage() {
         window.location.href = '/login'
         return
       }
+      await supabase.auth.setSession({
+        access_token: session.access_token,
+        refresh_token: session.refresh_token,
+      })
       setUser(session.user as User)
       const { data: p } = await supabase.from('profiles').select('*').eq('id', session.user.id).single()
       const { data: s } = await supabase.from('sections').select('*').order('sort_order')
