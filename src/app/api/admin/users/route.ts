@@ -30,10 +30,14 @@ function makeSupabase() {
   )
 }
 
-// GET — list all profiles
+// GET — list all profiles (uses anon key, RLS disabled on profiles)
 export async function GET() {
-  const admin = makeAdminClient()
-  const { data, error } = await admin.from('profiles').select('*').order('full_name')
+  const anon = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+  const { data, error } = await anon.from('profiles').select('*').order('full_name')
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
   return NextResponse.json(data || [])
 }
