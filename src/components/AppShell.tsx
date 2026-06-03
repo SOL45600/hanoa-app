@@ -9,6 +9,7 @@ import HomeView from './HomeView'
 import FeedView from './FeedView'
 import DocsView from './DocsView'
 import WeenatView from './WeenatView'
+import UsersView from './UsersView'
 import Modal from './Modal'
 import styles from './AppShell.module.css'
 
@@ -25,6 +26,7 @@ export default function AppShell({ user, profile, initialSections }: Props) {
   const [view, setView] = useState<'feed' | 'docs'>('feed')
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [showAddSection, setShowAddSection] = useState(false)
+  const [showUsers, setShowUsers] = useState(false)
   const [newName, setNewName] = useState('')
   const [newParent, setNewParent] = useState('')
 
@@ -80,7 +82,8 @@ export default function AppShell({ user, profile, initialSections }: Props) {
             sections={sections}
             selected={selected}
             onSelect={(s) => { setSelected(s); setView('feed'); setSidebarOpen(window.innerWidth > 640) }}
-            onHome={() => { setSelected(null); setSidebarOpen(window.innerWidth > 640) }}
+            onHome={() => { setSelected(null); setShowUsers(false); setSidebarOpen(window.innerWidth > 640) }}
+            onUsers={() => { setShowUsers(true); setSelected(null); setSidebarOpen(window.innerWidth > 640) }}
             onClose={() => setSidebarOpen(false)}
             onAddSection={() => setShowAddSection(true)}
             onDelete={handleDeleteSection}
@@ -100,14 +103,13 @@ export default function AppShell({ user, profile, initialSections }: Props) {
           onToggleSidebar={() => setSidebarOpen(o => !o)}
         />
         <div className={styles.content}>
-          {!selected && <HomeView tree={tree} onSelect={(s) => { setSelected(s); setView('feed') }} />}
-          {selected && selected.label.toLowerCase().includes('irrigation') && (
-            <WeenatView />
-          )}
-          {selected && !selected.label.toLowerCase().includes('irrigation') && view === 'feed' && (
+          {showUsers && <UsersView currentUserId={user.id} />}
+          {!showUsers && !selected && <HomeView tree={tree} onSelect={(s) => { setSelected(s); setView('feed') }} />}
+          {!showUsers && selected && selected.label.toLowerCase().includes('irrigation') && <WeenatView />}
+          {!showUsers && selected && !selected.label.toLowerCase().includes('irrigation') && view === 'feed' && (
             <FeedView sectionId={selected.id} userId={user.id} profile={profile} supabase={supabase} />
           )}
-          {selected && view === 'docs' && (
+          {!showUsers && selected && view === 'docs' && (
             <DocsView sectionId={selected.id} userId={user.id} profile={profile} supabase={supabase} />
           )}
         </div>

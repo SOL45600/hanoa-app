@@ -3,6 +3,8 @@ export interface Profile {
   full_name: string
   initials: string
   color: string
+  role?: 'admin' | 'member' | 'readonly'
+  email?: string
 }
 
 export interface Section {
