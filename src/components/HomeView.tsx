@@ -14,7 +14,7 @@ export default function HomeView({ tree, onSelect }: Props) {
         <div className={styles.heroOverlay} />
         <div className={styles.heroContent}>
           <h1>Bonjour 👋</h1>
-          <p>Plateforme interne HANOA — Lion-en-Sullias, Loiret</p>
+          <p>Plateforme interne Projet SOL — Lion-en-Sullias, Loiret</p>
         </div>
       </div>
 

@@ -55,7 +55,7 @@ export default function ResetPasswordPage() {
             <div className={styles.logoBox}>
               <i className="ti ti-leaf" />
             </div>
-            <h1>HANOA</h1>
+            <h1>Projet SOL</h1>
             <p>Nouveau mot de passe</p>
           </div>
         </div>

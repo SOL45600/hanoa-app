@@ -94,7 +94,7 @@ export default function Sidebar({ tree, sections, selected, onSelect, onHome, on
       <div className={styles.header}>
         <button onClick={onHome} className={styles.logoBtn} title="Accueil">
           <div className={styles.logo}><i className="ti ti-leaf" /></div>
-          <span className={styles.brand}>HANOA</span>
+          <span className={styles.brand}>Projet SOL</span>
         </button>
         <button onClick={onClose} className={styles.closeBtn} title="Fermer">
           <i className="ti ti-layout-sidebar-left-collapse" style={{ fontSize: 16 }} />

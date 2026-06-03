@@ -32,7 +32,7 @@ export default function LoginPage() {
             <div className={styles.logoBox}>
               <i className="ti ti-leaf" />
             </div>
-            <h1>HANOA</h1>
+            <h1>Projet SOL</h1>
             <p>Plateforme interne</p>
           </div>
         </div>
