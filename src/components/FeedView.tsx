@@ -1,9 +1,24 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { SupabaseClient } from '@supabase/supabase-js'
 import { Post, Comment, Profile } from '@/lib/types'
 import Avatar from './Avatar'
+import DocPreview from './DocPreview'
 import styles from './FeedView.module.css'
+
+interface Attachment {
+  id: string
+  post_id: string
+  name: string
+  storage_path: string
+  mime_type?: string
+  size_bytes?: number
+}
+
+interface PostWithAttachments extends Post {
+  attachments?: Attachment[]
+  pinned?: boolean
+}
 
 interface Props {
   sectionId: string
@@ -12,11 +27,38 @@ interface Props {
   supabase: SupabaseClient
 }
 
+const FILE_ICONS: Record<string, string> = {
+  pdf: 'ti-file-type-pdf', doc: 'ti-file-type-doc', docx: 'ti-file-type-doc',
+  xls: 'ti-file-spreadsheet', xlsx: 'ti-file-spreadsheet',
+  jpg: 'ti-photo', jpeg: 'ti-photo', png: 'ti-photo', gif: 'ti-photo',
+}
+const FILE_COLORS: Record<string, string> = {
+  pdf: '#d85a30', doc: '#185fa5', docx: '#185fa5',
+  xls: '#1d9e75', xlsx: '#1d9e75',
+  jpg: '#0f6e56', jpeg: '#0f6e56', png: '#0f6e56', gif: '#0f6e56',
+}
+
 function fmtDate(d: string) {
   return new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 }
+function fmtSize(b: number) {
+  return b < 1048576 ? `${(b / 1024).toFixed(0)} Ko` : `${(b / 1048576).toFixed(1)} Mo`
+}
+function getExt(name: string) { return name.split('.').pop()?.toLowerCase() || '' }
 
-function CommentThread({ comments, currentProfile, onAdd }: { comments: Comment[]; currentProfile: Profile; onAdd: (text: string) => void }) {
+function renderText(text: string) {
+  // Highlight @mentions
+  const parts = text.split(/(@\w[\w.-]*)/g)
+  return parts.map((p, i) =>
+    p.startsWith('@')
+      ? <span key={i} className={styles.mention}>{p}</span>
+      : <span key={i}>{p}</span>
+  )
+}
+
+function CommentThread({ comments, currentProfile, onAdd }: {
+  comments: Comment[]; currentProfile: Profile; onAdd: (text: string) => void
+}) {
   const [text, setText] = useState('')
   const submit = () => { if (text.trim()) { onAdd(text); setText('') } }
   return (
@@ -27,7 +69,7 @@ function CommentThread({ comments, currentProfile, onAdd }: { comments: Comment[
           <div className={styles.commentBubble}>
             <span className={styles.commentAuthor}>{c.profiles?.full_name || '…'}</span>
             <span className={styles.commentDate}>{fmtDate(c.created_at)}</span>
-            <p>{c.content}</p>
+            <p>{renderText(c.content)}</p>
           </div>
         </div>
       ))}
@@ -42,53 +84,153 @@ function CommentThread({ comments, currentProfile, onAdd }: { comments: Comment[
 }
 
 export default function FeedView({ sectionId, userId, profile, supabase }: Props) {
-  const [posts, setPosts] = useState<Post[]>([])
+  const [posts, setPosts] = useState<PostWithAttachments[]>([])
   const [text, setText] = useState('')
+  const [pendingFiles, setPendingFiles] = useState<File[]>([])
   const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
   const [openComments, setOpenComments] = useState<Record<string, boolean>>({})
+  const [preview, setPreview] = useState<Attachment | null>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     setLoading(true)
     supabase
       .from('posts')
-      .select('*, profiles(*), comments(*, profiles(*))')
+      .select('*')
       .eq('section_id', sectionId)
+      .order('pinned', { ascending: false })
       .order('created_at', { ascending: false })
-      .then(({ data }) => { setPosts(data || []); setLoading(false) })
+      .then(async ({ data: postsData }) => {
+        if (!postsData) { setLoading(false); return }
+        // Fetch attachments for all posts
+        const { data: attData } = await supabase
+          .from('post_attachments')
+          .select('*')
+          .in('post_id', postsData.map(p => p.id))
+        const attMap: Record<string, Attachment[]> = {}
+        attData?.forEach((a: Attachment) => {
+          if (!attMap[a.post_id]) attMap[a.post_id] = []
+          attMap[a.post_id].push(a)
+        })
+        setPosts(postsData.map(p => ({ ...p, attachments: attMap[p.id] || [] })))
+        setLoading(false)
+      })
   }, [sectionId])
 
   const submitPost = async () => {
-    if (!text.trim()) return
-    const { data, error } = await supabase
+    if (!text.trim() && pendingFiles.length === 0) return
+    setSubmitting(true)
+    const { data: post, error } = await supabase
       .from('posts')
       .insert({ section_id: sectionId, author_id: userId, content: text })
-      .select('*, profiles(*), comments(*, profiles(*))')
+      .select('*')
       .single()
-    if (!error && data) { setPosts(p => [data, ...p]); setText('') }
+
+    if (error || !post) { setSubmitting(false); return }
+
+    // Upload attachments
+    const attachments: Attachment[] = []
+    for (const file of pendingFiles) {
+      const path = `${userId}/${sectionId}/posts/${Date.now()}-${file.name}`
+      const { error: upErr } = await supabase.storage.from('hanoa-files').upload(path, file)
+      if (!upErr) {
+        const { data: att } = await supabase
+          .from('post_attachments')
+          .insert({ post_id: post.id, name: file.name, storage_path: path, mime_type: file.type, size_bytes: file.size })
+          .select('*').single()
+        if (att) attachments.push(att)
+      }
+    }
+
+    setPosts(p => [{ ...post, attachments, profiles: profile }, ...p])
+    setText('')
+    setPendingFiles([])
+    setSubmitting(false)
+  }
+
+  const togglePin = async (postId: string, currentPinned: boolean) => {
+    await supabase.from('posts').update({ pinned: !currentPinned }).eq('id', postId)
+    setPosts(ps => {
+      const updated = ps.map(p => p.id === postId ? { ...p, pinned: !currentPinned } : p)
+      return [...updated].sort((a, b) => {
+        if (a.pinned && !b.pinned) return -1
+        if (!a.pinned && b.pinned) return 1
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      })
+    })
   }
 
   const addComment = async (postId: string, content: string) => {
     const { data, error } = await supabase
       .from('comments')
       .insert({ post_id: postId, author_id: userId, content })
-      .select('*, profiles(*)')
-      .single()
+      .select('*').single()
     if (!error && data) {
-      setPosts(ps => ps.map(p => p.id === postId ? { ...p, comments: [...(p.comments || []), data] } : p))
+      setPosts(ps => ps.map(p => p.id === postId
+        ? { ...p, comments: [...(p.comments || []), { ...data, profiles: profile }] }
+        : p))
     }
+  }
+
+  const removeFile = (idx: number) => setPendingFiles(f => f.filter((_, i) => i !== idx))
+
+  const getDownloadUrl = async (path: string) => {
+    const { data } = await supabase.storage.from('hanoa-files').createSignedUrl(path, 3600)
+    if (data?.signedUrl) window.open(data.signedUrl, '_blank')
   }
 
   return (
     <div className={styles.feed}>
+      {preview && (
+        <DocPreview
+          storagePath={preview.storage_path}
+          fileName={preview.name}
+          mimeType={preview.mime_type}
+          supabase={supabase}
+          onClose={() => setPreview(null)}
+        />
+      )}
+
+      {/* Compose */}
       <div className={styles.compose}>
         <Avatar profile={profile} size={34} />
         <div className={styles.composeRight}>
-          <textarea value={text} onChange={e => setText(e.target.value)} placeholder="Écrire un message dans cette rubrique…"
-            rows={3} onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submitPost() }} />
+          <textarea value={text} onChange={e => setText(e.target.value)}
+            placeholder="Écrire un message… (@mention un collègue)"
+            rows={3}
+            onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submitPost() }} />
+
+          {/* Pending files */}
+          {pendingFiles.length > 0 && (
+            <div className={styles.pendingFiles}>
+              {pendingFiles.map((f, i) => {
+                const ext = getExt(f.name)
+                return (
+                  <div key={i} className={styles.pendingFile}>
+                    <i className={`ti ${FILE_ICONS[ext] || 'ti-file'}`}
+                      style={{ color: FILE_COLORS[ext] || '#888', fontSize: 16 }} />
+                    <span>{f.name}</span>
+                    <span className={styles.pendingSize}>{fmtSize(f.size)}</span>
+                    <button onClick={() => removeFile(i)} className={styles.removeFile}>✕</button>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
           <div className={styles.composeFooter}>
-            <span className={styles.hint}>Cmd+Entrée pour publier</span>
-            <button onClick={submitPost} className={styles.publishBtn} disabled={!text.trim()}>
-              Publier
+            <button className={styles.attachBtn} onClick={() => fileRef.current?.click()} title="Joindre un fichier">
+              <i className="ti ti-paperclip" style={{ fontSize: 16 }} />
+              Joindre
+            </button>
+            <input ref={fileRef} type="file" multiple style={{ display: 'none' }}
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif"
+              onChange={e => setPendingFiles(f => [...f, ...Array.from(e.target.files || [])])} />
+            <span className={styles.hint}>Cmd+Entrée</span>
+            <button onClick={submitPost} className={styles.publishBtn}
+              disabled={!text.trim() && pendingFiles.length === 0 || submitting}>
+              {submitting ? 'Envoi…' : 'Publier'}
             </button>
           </div>
         </div>
@@ -103,14 +245,41 @@ export default function FeedView({ sectionId, userId, profile, supabase }: Props
       )}
 
       {posts.map(post => (
-        <div key={post.id} className={styles.post}>
+        <div key={post.id} className={`${styles.post} ${post.pinned ? styles.pinned : ''}`}>
+          {post.pinned && <div className={styles.pinnedBadge}><i className="ti ti-pin" /> Épinglé</div>}
           <Avatar profile={post.profiles || profile} size={34} />
           <div className={styles.postContent}>
             <div className={styles.postMeta}>
-              <span className={styles.author}>{post.profiles?.full_name || '…'}</span>
+              <span className={styles.author}>{post.profiles?.full_name || profile.full_name}</span>
               <span className={styles.date}>{fmtDate(post.created_at)}</span>
+              <button className={styles.pinBtn} onClick={() => togglePin(post.id, !!post.pinned)}
+                title={post.pinned ? 'Désépingler' : 'Épingler'}>
+                <i className={`ti ${post.pinned ? 'ti-pin-filled' : 'ti-pin'}`} />
+              </button>
             </div>
-            <p className={styles.postText}>{post.content}</p>
+
+            {post.content && <p className={styles.postText}>{renderText(post.content)}</p>}
+
+            {/* Attachments */}
+            {post.attachments && post.attachments.length > 0 && (
+              <div className={styles.attachments}>
+                {post.attachments.map(a => {
+                  const ext = getExt(a.name)
+                  return (
+                    <div key={a.id} className={styles.attachment}>
+                      <i className={`ti ${FILE_ICONS[ext] || 'ti-file'}`}
+                        style={{ color: FILE_COLORS[ext] || '#888', fontSize: 18 }} />
+                      <button className={styles.attName} onClick={() => setPreview(a)}>{a.name}</button>
+                      <span className={styles.attSize}>{a.size_bytes ? fmtSize(a.size_bytes) : ''}</span>
+                      <button onClick={() => getDownloadUrl(a.storage_path)} className={styles.attAction} title="Télécharger">
+                        <i className="ti ti-download" />
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
             <button className={styles.commentToggle}
               onClick={() => setOpenComments(o => ({ ...o, [post.id]: !o[post.id] }))}>
               <i className="ti ti-message" />

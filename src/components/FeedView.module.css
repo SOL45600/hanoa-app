@@ -1,154 +1,101 @@
 .feed { max-width: 680px; }
 
 .compose {
-  display: flex;
-  gap: 10px;
-  background: white;
-  border: 0.5px solid var(--border);
-  border-radius: 12px;
-  padding: 14px 16px;
-  margin-bottom: 1.5rem;
+  display: flex; gap: 10px;
+  background: white; border: 0.5px solid var(--border);
+  border-radius: 12px; padding: 14px 16px; margin-bottom: 1.5rem;
 }
-
-.composeRight {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
+.composeRight { flex: 1; display: flex; flex-direction: column; gap: 8px; }
 .composeRight textarea {
-  border: 0.5px solid rgba(44,44,42,0.15);
-  border-radius: 8px;
-  padding: 8px 10px;
-  font-size: 14px;
-  resize: vertical;
-  background: #fafaf8;
-  line-height: 1.5;
-  min-height: 72px;
+  border: 0.5px solid rgba(44,44,42,0.15); border-radius: 8px;
+  padding: 8px 10px; font-size: 14px; resize: vertical;
+  background: #fafaf8; line-height: 1.5; min-height: 72px;
 }
 .composeRight textarea:focus { outline: none; border-color: var(--green); }
 
-.composeFooter {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+/* Pending files */
+.pendingFiles { display: flex; flex-direction: column; gap: 5px; }
+.pendingFile {
+  display: flex; align-items: center; gap: 7px;
+  padding: 6px 10px; background: var(--bg); border-radius: 7px; font-size: 12px;
 }
+.pendingFile span:nth-child(2) { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pendingSize { color: var(--muted); flex-shrink: 0; }
+.removeFile { color: var(--muted); font-size: 11px; flex-shrink: 0; padding: 2px 5px; border-radius: 4px; }
+.removeFile:hover { background: #faece7; color: #d85a30; }
 
-.hint { font-size: 12px; color: #aaa; }
-
+.composeFooter { display: flex; align-items: center; gap: 8px; }
+.attachBtn {
+  display: flex; align-items: center; gap: 5px;
+  padding: 6px 10px; border: 0.5px solid var(--border-mid);
+  border-radius: 7px; font-size: 12px; color: var(--muted);
+  transition: all 0.12s;
+}
+.attachBtn:hover { background: var(--bg); color: var(--green); border-color: var(--green); }
+.hint { font-size: 12px; color: #aaa; flex: 1; }
 .publishBtn {
-  padding: 7px 14px;
-  background: var(--green);
-  color: white;
-  border-radius: 7px;
-  font-size: 13px;
-  font-family: 'Georgia', serif;
-  transition: background 0.15s;
+  padding: 7px 14px; background: var(--green); color: white;
+  border-radius: 7px; font-size: 13px; font-family: 'Georgia', serif; transition: background 0.15s;
 }
 .publishBtn:hover { background: #0d5d48; }
 .publishBtn:disabled { background: #d3d1c7; cursor: not-allowed; }
 
-.empty {
-  text-align: center;
-  color: var(--muted);
-  padding: 3rem 0;
-  font-size: 14px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-}
+.empty { text-align: center; color: var(--muted); padding: 3rem 0; font-size: 14px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .empty i { font-size: 32px; color: #d3d1c7; }
 
+/* Post */
 .post {
-  display: flex;
-  gap: 10px;
-  background: white;
-  border: 0.5px solid var(--border);
-  border-radius: 12px;
-  padding: 14px 16px;
-  margin-bottom: 10px;
+  display: flex; gap: 10px; background: white;
+  border: 0.5px solid var(--border); border-radius: 12px;
+  padding: 14px 16px; margin-bottom: 10px; position: relative;
+  transition: border-color 0.15s;
+}
+.pinned { border-color: var(--green); border-left: 3px solid var(--green); }
+.pinnedBadge {
+  position: absolute; top: 10px; right: 12px;
+  font-size: 11px; color: var(--green); display: flex; align-items: center; gap: 3px;
 }
 
 .postContent { flex: 1; min-width: 0; }
-
-.postMeta {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  margin-bottom: 6px;
-  flex-wrap: wrap;
-}
-
+.postMeta { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
 .author { font-size: 13px; font-weight: 500; }
-.date { font-size: 12px; color: var(--muted); }
+.date { font-size: 12px; color: var(--muted); flex: 1; }
+.pinBtn { padding: 3px 5px; color: #ccc; border-radius: 5px; transition: all 0.12s; }
+.pinBtn:hover { color: var(--green); background: var(--green-light); }
 
-.postText {
-  font-size: 14px;
-  line-height: 1.6;
-  white-space: pre-wrap;
-  word-break: break-word;
+.postText { font-size: 14px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
+
+/* @mention */
+.mention { color: var(--green); font-weight: 500; }
+
+/* Attachments */
+.attachments { margin-top: 10px; display: flex; flex-direction: column; gap: 5px; }
+.attachment {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 10px; background: var(--bg); border-radius: 8px; font-size: 13px;
 }
+.attName {
+  flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  text-align: left; font-size: 13px; color: var(--text); cursor: pointer;
+}
+.attName:hover { color: var(--green); text-decoration: underline; }
+.attSize { font-size: 11px; color: var(--muted); flex-shrink: 0; }
+.attAction { width: 26px; height: 26px; border-radius: 5px; display: flex; align-items: center; justify-content: center; color: var(--muted); transition: all 0.12s; flex-shrink: 0; }
+.attAction:hover { background: white; color: var(--green); }
 
 .commentToggle {
-  margin-top: 8px;
-  font-size: 12px;
-  color: var(--muted);
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 3px 0;
-  font-family: 'Georgia', serif;
+  margin-top: 8px; font-size: 12px; color: var(--muted);
+  display: flex; align-items: center; gap: 5px; padding: 3px 0; font-family: 'Georgia', serif;
 }
 .commentToggle:hover { color: var(--green); }
 
-.thread {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 0.5px solid rgba(44,44,42,0.08);
-}
-
-.comment {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.commentBubble {
-  background: var(--bg);
-  border-radius: 8px;
-  padding: 7px 10px;
-  flex: 1;
-  font-size: 13px;
-  line-height: 1.5;
-}
-
+.thread { margin-top: 10px; padding-top: 10px; border-top: 0.5px solid rgba(44,44,42,0.08); }
+.comment { display: flex; gap: 8px; margin-bottom: 8px; }
+.commentBubble { background: var(--bg); border-radius: 8px; padding: 7px 10px; flex: 1; font-size: 13px; line-height: 1.5; }
 .commentAuthor { font-weight: 500; margin-right: 6px; }
 .commentDate { font-size: 11px; color: var(--muted); }
 .commentBubble p { margin-top: 3px; }
-
-.commentInput {
-  display: flex;
-  gap: 8px;
-  margin-top: 6px;
-  align-items: center;
-}
-
-.commentInput input {
-  flex: 1;
-  border: 0.5px solid var(--border-mid);
-  border-radius: 8px;
-  padding: 6px 10px;
-  font-size: 13px;
-  background: #fafaf8;
-}
+.commentInput { display: flex; gap: 8px; margin-top: 6px; align-items: center; }
+.commentInput input { flex: 1; border: 0.5px solid var(--border-mid); border-radius: 8px; padding: 6px 10px; font-size: 13px; background: #fafaf8; }
 .commentInput input:focus { outline: none; border-color: var(--green); }
-
-.commentInput button {
-  padding: 6px 10px;
-  background: var(--green);
-  color: white;
-  border-radius: 7px;
-  font-size: 13px;
-}
+.commentInput button { padding: 6px 10px; background: var(--green); color: white; border-radius: 7px; font-size: 13px; }

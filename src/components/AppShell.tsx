@@ -10,6 +10,7 @@ import FeedView from './FeedView'
 import DocsView from './DocsView'
 import WeenatView from './WeenatView'
 import UsersView from './UsersView'
+import SearchView from './SearchView'
 import Modal from './Modal'
 import styles from './AppShell.module.css'
 
@@ -27,6 +28,7 @@ export default function AppShell({ user, profile, initialSections }: Props) {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [showAddSection, setShowAddSection] = useState(false)
   const [showUsers, setShowUsers] = useState(false)
+  const [showSearch, setShowSearch] = useState(false)
   const [newName, setNewName] = useState('')
   const [newParent, setNewParent] = useState('')
 
@@ -82,7 +84,7 @@ export default function AppShell({ user, profile, initialSections }: Props) {
             sections={sections}
             selected={selected}
             onSelect={(s) => { setSelected(s); setView('feed'); setSidebarOpen(window.innerWidth > 640) }}
-            onHome={() => { setSelected(null); setShowUsers(false); setSidebarOpen(window.innerWidth > 640) }}
+            onHome={() => { setSelected(null); setShowUsers(false); setShowSearch(false); setSidebarOpen(window.innerWidth > 640) }}
             onUsers={() => { setShowUsers(true); setSelected(null); setSidebarOpen(window.innerWidth > 640) }}
             onClose={() => setSidebarOpen(false)}
             onAddSection={() => setShowAddSection(true)}
@@ -101,10 +103,13 @@ export default function AppShell({ user, profile, initialSections }: Props) {
           profile={profile}
           sidebarOpen={sidebarOpen}
           onToggleSidebar={() => setSidebarOpen(o => !o)}
+          onSearch={() => { setShowSearch(s => !s); setShowUsers(false) }}
+          isSearching={showSearch}
         />
         <div className={styles.content}>
-          {showUsers && <UsersView currentUserId={user.id} />}
-          {!showUsers && !selected && <HomeView tree={tree} onSelect={(s) => { setSelected(s); setView('feed') }} />}
+          {showSearch && <SearchView supabase={supabase} sections={sections} onNavigate={(sid, v) => { setSelected(sections.find(s => s.id === sid) as SectionTree || null); setView(v); setShowSearch(false) }} />}
+          {showUsers && !showSearch && <UsersView currentUserId={user.id} />}
+          {!showUsers && !showSearch && !selected && <HomeView tree={tree} onSelect={(s) => { setSelected(s); setView('feed') }} />}
           {!showUsers && selected && selected.label.toLowerCase().includes('irrigation') && <WeenatView />}
           {!showUsers && selected && !selected.label.toLowerCase().includes('irrigation') && view === 'feed' && (
             <FeedView sectionId={selected.id} userId={user.id} profile={profile} supabase={supabase} />

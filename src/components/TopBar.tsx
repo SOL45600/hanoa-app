@@ -9,9 +9,11 @@ interface Props {
   profile: Profile
   sidebarOpen: boolean
   onToggleSidebar: () => void
+  onSearch: () => void
+  isSearching: boolean
 }
 
-export default function TopBar({ section, view, setView, profile, sidebarOpen, onToggleSidebar }: Props) {
+export default function TopBar({ section, view, setView, profile, sidebarOpen, onToggleSidebar, onSearch, isSearching }: Props) {
   return (
     <div className={styles.bar}>
       {!sidebarOpen && (
@@ -20,9 +22,12 @@ export default function TopBar({ section, view, setView, profile, sidebarOpen, o
         </button>
       )}
       <div className={styles.title}>
-        <h2>{section ? section.label : 'Accueil'}</h2>
+        <h2>{isSearching ? 'Recherche' : section ? section.label : 'Accueil'}</h2>
       </div>
-      {section && (
+      <button onClick={onSearch} className={`${styles.searchBtn} ${isSearching ? styles.searchActive : ''}`} title="Rechercher">
+        <i className="ti ti-search" style={{ fontSize: 16 }} />
+      </button>
+      {section && !isSearching && (
         <div className={styles.viewToggle}>
           {([['feed', 'ti-messages', 'Feed'], ['docs', 'ti-files', 'Documents']] as const).map(([k, icon, label]) => (
             <button key={k} onClick={() => setView(k)}
