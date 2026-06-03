@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { SupabaseClient } from '@supabase/supabase-js'
 import { Document, Comment, Profile } from '@/lib/types'
 import Avatar from './Avatar'
+import DocPreview from './DocPreview'
 import styles from './DocsView.module.css'
 
 interface Props {
@@ -60,6 +61,7 @@ export default function DocsView({ sectionId, userId, profile, supabase }: Props
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [openComments, setOpenComments] = useState<Record<string, boolean>>({})
+  const [preview, setPreview] = useState<Document | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -132,6 +134,16 @@ export default function DocsView({ sectionId, userId, profile, supabase }: Props
         </div>
       )}
 
+      {preview && (
+        <DocPreview
+          storagePath={preview.storage_path}
+          fileName={preview.name}
+          mimeType={preview.mime_type}
+          supabase={supabase}
+          onClose={() => setPreview(null)}
+        />
+      )}
+
       {docs.map(doc => {
         const ext = doc.name.split('.').pop()?.toLowerCase() || ''
         const cfg = FILE_ICONS[ext] || { icon: 'ti-file', color: '#5f5e5a' }
@@ -142,10 +154,17 @@ export default function DocsView({ sectionId, userId, profile, supabase }: Props
             </div>
             <div className={styles.docInfo}>
               <div className={styles.docHeader}>
-                <span className={styles.docName}>{doc.name}</span>
-                <button onClick={() => getDownloadUrl(doc.storage_path)} className={styles.downloadBtn} title="Télécharger">
-                  <i className="ti ti-download" style={{ fontSize: 16 }} />
+                <button className={styles.docName} onClick={() => setPreview(doc)} title="Visualiser">
+                  {doc.name}
                 </button>
+                <div className={styles.docActions}>
+                  <button onClick={() => setPreview(doc)} className={styles.actionBtn} title="Visualiser">
+                    <i className="ti ti-eye" style={{ fontSize: 15 }} />
+                  </button>
+                  <button onClick={() => getDownloadUrl(doc.storage_path)} className={styles.actionBtn} title="Télécharger">
+                    <i className="ti ti-download" style={{ fontSize: 15 }} />
+                  </button>
+                </div>
               </div>
               <div className={styles.docMeta}>
                 <Avatar profile={doc.profiles || profile} size={18} />

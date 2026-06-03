@@ -8,6 +8,7 @@ import TopBar from './TopBar'
 import HomeView from './HomeView'
 import FeedView from './FeedView'
 import DocsView from './DocsView'
+import WeenatView from './WeenatView'
 import Modal from './Modal'
 import styles from './AppShell.module.css'
 
@@ -100,7 +101,10 @@ export default function AppShell({ user, profile, initialSections }: Props) {
         />
         <div className={styles.content}>
           {!selected && <HomeView tree={tree} onSelect={(s) => { setSelected(s); setView('feed') }} />}
-          {selected && view === 'feed' && (
+          {selected && selected.label.toLowerCase().includes('irrigation') && (
+            <WeenatView />
+          )}
+          {selected && !selected.label.toLowerCase().includes('irrigation') && view === 'feed' && (
             <FeedView sectionId={selected.id} userId={user.id} profile={profile} supabase={supabase} />
           )}
           {selected && view === 'docs' && (
