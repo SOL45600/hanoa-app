@@ -1,8 +1,1 @@
-{
-  "crons": [
-    {
-      "path": "/api/cron/weenat-alerts",
-      "schedule": "0 7 * * *"
-    }
-  ]
-}
+{}
