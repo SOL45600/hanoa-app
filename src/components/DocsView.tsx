@@ -66,7 +66,7 @@ export default function DocsView({ sectionId, userId, profile, supabase }: Props
     setLoading(true)
     supabase
       .from('documents')
-      .select('*, profiles(*), comments(*, profiles(*))')
+      .select('*')
       .eq('section_id', sectionId)
       .order('created_at', { ascending: false })
       .then(({ data }) => { setDocs(data || []); setLoading(false) })
@@ -90,7 +90,7 @@ export default function DocsView({ sectionId, userId, profile, supabase }: Props
             mime_type: file.type,
             size_bytes: file.size,
           })
-          .select('*, profiles(*), comments(*, profiles(*))')
+          .select('*')
           .single()
         if (!error && data) setDocs(d => [data, ...d])
       }
@@ -108,7 +108,7 @@ export default function DocsView({ sectionId, userId, profile, supabase }: Props
     const { data, error } = await supabase
       .from('comments')
       .insert({ document_id: docId, author_id: userId, content })
-      .select('*, profiles(*)')
+      .select('*')
       .single()
     if (!error && data) {
       setDocs(ds => ds.map(d => d.id === docId ? { ...d, comments: [...(d.comments || []), data] } : d))
