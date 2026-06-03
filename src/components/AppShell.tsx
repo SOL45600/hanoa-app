@@ -11,6 +11,7 @@ import DocsView from './DocsView'
 import WeenatView from './WeenatView'
 import UsersView from './UsersView'
 import SearchView from './SearchView'
+import CommandesView from './CommandesView'
 import Modal from './Modal'
 import styles from './AppShell.module.css'
 
@@ -111,7 +112,10 @@ export default function AppShell({ user, profile, initialSections }: Props) {
           {showUsers && !showSearch && <UsersView currentUserId={user.id} />}
           {!showUsers && !showSearch && !selected && <HomeView tree={tree} onSelect={(s) => { setSelected(s); setView('feed') }} />}
           {!showUsers && selected && selected.label.toLowerCase().includes('irrigation') && <WeenatView />}
-          {!showUsers && selected && !selected.label.toLowerCase().includes('irrigation') && view === 'feed' && (
+          {!showUsers && selected && selected.label.toLowerCase() === 'commandes' && (
+            <CommandesView sectionId={selected.id} userId={user.id} profile={profile} supabase={supabase} />
+          )}
+          {!showUsers && selected && !selected.label.toLowerCase().includes('irrigation') && selected.label.toLowerCase() !== 'commandes' && view === 'feed' && (
             <FeedView sectionId={selected.id} userId={user.id} profile={profile} supabase={supabase} />
           )}
           {!showUsers && selected && view === 'docs' && (
