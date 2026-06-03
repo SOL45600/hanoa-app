@@ -87,9 +87,6 @@ function SectionNode({ node, depth, selected, onSelect, onDelete, onRename, unre
             <button onClick={() => setEditing(true)} title="Renommer">
               <i className="ti ti-edit" style={{ fontSize: 12 }} />
             </button>
-            <button onClick={() => onDelete(node.id)} title="Supprimer" style={{ color: '#993c1d' }}>
-              <i className="ti ti-trash" style={{ fontSize: 12 }} />
-            </button>
           </div>
         )}
       </div>
