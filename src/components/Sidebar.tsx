@@ -15,6 +15,7 @@ interface Props {
   onRename: (id: string, label: string) => void
   onUsers: () => void
   onCalendar: () => void
+  showCalendar: boolean
   profile: Profile
   onLogout: () => void
 }
@@ -90,7 +91,7 @@ function SectionNode({ node, depth, selected, onSelect, onDelete, onRename }: {
   )
 }
 
-export default function Sidebar({ tree, sections, selected, onSelect, onHome, onClose, onAddSection, onDelete, onRename, onUsers, onCalendar, profile, onLogout }: Props) {
+export default function Sidebar({ tree, sections, selected, onSelect, onHome, onClose, onAddSection, onDelete, onRename, onUsers, onCalendar, showCalendar, profile, onLogout }: Props) {
   return (
     <div className={styles.sidebar}>
       <div className={styles.header}>
@@ -104,11 +105,11 @@ export default function Sidebar({ tree, sections, selected, onSelect, onHome, on
       </div>
 
       <div className={styles.nav}>
-        <button className={`${styles.homeBtn} ${!selected ? styles.homeBtnActive : ''}`} onClick={onHome}>
+        <button className={`${styles.homeBtn} ${!selected && !showCalendar ? styles.homeBtnActive : ''}`} onClick={onHome}>
           <i className="ti ti-home" style={{ fontSize: 15 }} />
           <span>Accueil</span>
         </button>
-        <button className={styles.homeBtn} onClick={onCalendar}>
+        <button className={`${styles.homeBtn} ${showCalendar ? styles.homeBtnActive : ''}`} onClick={onCalendar}>
           <i className="ti ti-calendar" style={{ fontSize: 15 }} />
           <span>Planning</span>
         </button>
@@ -128,9 +129,6 @@ export default function Sidebar({ tree, sections, selected, onSelect, onHome, on
         <div className={styles.footerInfo}>
           <span className={styles.footerName}>{profile.full_name}</span>
         </div>
-        <button onClick={onCalendar} title="Calendrier" className={styles.logoutBtn}>
-          <i className="ti ti-calendar" style={{ fontSize: 16 }} />
-        </button>
         <button onClick={onUsers} title="Utilisateurs" className={styles.logoutBtn}>
           <i className="ti ti-users" style={{ fontSize: 16 }} />
         </button>

@@ -90,6 +90,7 @@ export default function AppShell({ user, profile, initialSections }: Props) {
             onHome={() => { setSelected(null); setShowUsers(false); setShowSearch(false); setShowCalendar(false); setSidebarOpen(window.innerWidth > 640) }}
             onUsers={() => { setShowUsers(true); setSelected(null); setShowCalendar(false); setSidebarOpen(window.innerWidth > 640) }}
             onCalendar={() => { setShowCalendar(true); setSelected(null); setShowUsers(false); setSidebarOpen(window.innerWidth > 640) }}
+            showCalendar={showCalendar}
             onClose={() => setSidebarOpen(false)}
             onAddSection={() => setShowAddSection(true)}
             onDelete={handleDeleteSection}
