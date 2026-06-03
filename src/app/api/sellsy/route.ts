@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse, type NextRequest } from 'next/server'
 
 const CLIENT_ID = process.env.SELLSY_CLIENT_ID!
@@ -18,11 +19,15 @@ async function getToken(): Promise<string> {
   return cachedToken.token
 }
 
-async function sellsyFetch(path: string, options?: RequestInit) {
+async function sellsyFetch(path: string, options?: RequestInit): Promise<any> {
   const token = await getToken()
   const res = await fetch(`${BASE}${path}`, {
     ...options,
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...options?.headers },
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      ...(options?.headers || {}),
+    },
   })
   return res.json()
 }
@@ -32,40 +37,32 @@ export async function GET(request: NextRequest) {
   const type = searchParams.get('type')
 
   if (type === 'dashboard') {
-    // Revenue + invoice stats
     const [invoicesData, companiesData] = await Promise.all([
       sellsyFetch('/invoices?limit=100&order[created]=desc'),
       sellsyFetch('/companies?limit=1'),
     ])
-    const invoices = invoicesData.data || []
+    const invoices: any[] = invoicesData.data || []
     const thisMonth = new Date().toISOString().slice(0, 7)
-    const lastMonth = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 7)
 
     const monthlyCA = invoices
-      .filter((i: {date: string}) => i.date?.startsWith(thisMonth))
-      .reduce((s: number, i: {amounts: {total_excl_tax: string}}) => s + parseFloat(i.amounts.total_excl_tax || '0'), 0)
+      .filter(i => i.date?.startsWith(thisMonth))
+      .reduce((s, i) => s + parseFloat(i.amounts?.total_excl_tax || '0'), 0)
 
-    const unpaid = invoices.filter((i: {amounts: {total_remaining_due_incl_tax: string}}) =>
-      parseFloat(i.amounts.total_remaining_due_incl_tax || '0') > 0)
-
-    const totalUnpaid = unpaid.reduce((s: number, i: {amounts: {total_remaining_due_incl_tax: string}}) =>
-      s + parseFloat(i.amounts.total_remaining_due_incl_tax || '0'), 0)
+    const unpaid = invoices.filter(i => parseFloat(i.amounts?.total_remaining_due_incl_tax || '1') > 0)
+    const totalUnpaid = unpaid.reduce((s, i) => s + parseFloat(i.amounts?.total_remaining_due_incl_tax || '0'), 0)
 
     return NextResponse.json({
       monthly_ca: monthlyCA,
       total_clients: companiesData.pagination?.total || 0,
       unpaid_count: unpaid.length,
       unpaid_amount: totalUnpaid,
-      recent_invoices: invoices.slice(0, 10).map((i: {
-        id: number; number: string; date: string; amounts: {total_excl_tax: string; total_remaining_due_incl_tax: string}
-        related: {type: string; id: number}[]
-      }) => ({
+      recent_invoices: invoices.slice(0, 10).map(i => ({
         id: i.id,
         number: i.number,
         date: i.date,
-        total_ht: parseFloat(i.amounts.total_excl_tax || '0'),
-        remaining: parseFloat(i.amounts.total_remaining_due_incl_tax || '0'),
-        paid: parseFloat(i.amounts.total_remaining_due_incl_tax || '0') === 0,
+        total_ht: parseFloat(i.amounts?.total_excl_tax || '0'),
+        remaining: parseFloat(i.amounts?.total_remaining_due_incl_tax || '0'),
+        paid: parseFloat(i.amounts?.total_remaining_due_incl_tax || '0') === 0,
       })),
     })
   }
@@ -73,9 +70,7 @@ export async function GET(request: NextRequest) {
   if (type === 'companies') {
     const q = searchParams.get('q') || ''
     const data = await sellsyFetch(`/companies?limit=20${q ? `&search[name]=${encodeURIComponent(q)}` : ''}`)
-    return NextResponse.json((data.data || []).map((c: {id: number; name: string; email: string}) => ({
-      id: c.id, name: c.name, email: c.email,
-    })))
+    return NextResponse.json((data.data || []).map((c: any) => ({ id: c.id, name: c.name, email: c.email })))
   }
 
   if (type === 'invoices') {
@@ -105,7 +100,6 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Find company in Sellsy
     const companies = await sellsyFetch(`/companies?search[name]=${encodeURIComponent(client_name)}&limit=1`)
     const company = companies.data?.[0]
     if (!company) return NextResponse.json({ error: `Client "${client_name}" introuvable dans Sellsy` }, { status: 404 })
@@ -115,11 +109,10 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({
         date: new Date().toISOString().slice(0, 10),
         related: [{ type: 'company', id: company.id }],
-        order_reference: order_number,   // N° BDL = N° commande SOL
+        order_reference: order_number,
         subject: `Commande ${order_number} — Projet SOL`,
-        note: lines.map((l: { product: string; quantity: string; unit: string }) =>
-          `${l.product} ${l.quantity} ${l.unit}`).join('\n'),
-        rows: lines.map((l: { product: string; variety?: string; quantity: string; unit: string; packaging?: string }) => ({
+        note: (lines || []).map((l: any) => `${l.product} ${l.quantity} ${l.unit}`).join('\n'),
+        rows: (lines || []).map((l: any) => ({
           type: 'product',
           name: [l.product, l.variety, l.packaging].filter(Boolean).join(' — '),
           unit_amount: 0,
