@@ -131,7 +131,7 @@ export default function AppShell({ user, profile, initialSections }: Props) {
             tree={tree}
             sections={sections}
             selected={selected}
-            onSelect={(s) => { setSelected(s); setView('feed'); markSectionRead(s.id); setSidebarOpen(window.innerWidth > 640) }}
+            onSelect={(s) => { setSelected(s); setView('feed'); setShowCalendar(false); setShowUsers(false); setShowSearch(false); markSectionRead(s.id); setSidebarOpen(window.innerWidth > 640) }}
             unreadCounts={unreadCounts}
             onHome={() => { setSelected(null); setShowUsers(false); setShowSearch(false); setShowCalendar(false); setSidebarOpen(window.innerWidth > 640) }}
             onUsers={() => { setShowUsers(true); setSelected(null); setShowCalendar(false); setSidebarOpen(window.innerWidth > 640) }}
