@@ -115,7 +115,18 @@ export default function AppShell({ user, profile, initialSections }: Props) {
           {showUsers && !showSearch && <UsersView currentUserId={user.id} />}
           {showCalendar && !showSearch && !showUsers && <CalendarView supabase={supabase} userId={user.id} profile={profile} sections={sections} />}
           {!showUsers && !showSearch && !showCalendar && !selected && (
-            <HomeView tree={tree} onSelect={(s) => { setSelected(s); setView('feed') }} supabase={supabase} profile={profile} onCalendar={() => setShowCalendar(true)} />
+            <HomeView
+              tree={tree}
+              onSelect={(s) => { setSelected(s); setView('feed') }}
+              supabase={supabase}
+              profile={profile}
+              sections={sections}
+              onCalendar={() => setShowCalendar(true)}
+              onCommandes={() => {
+                const cmd = sections.find(s => s.label.toLowerCase() === 'commandes')
+                if (cmd) setSelected(cmd as SectionTree)
+              }}
+            />
           )}
           {!showUsers && selected && selected.label.toLowerCase().includes('irrigation') && <WeenatView />}
           {!showUsers && selected && selected.label.toLowerCase() === 'commandes' && (

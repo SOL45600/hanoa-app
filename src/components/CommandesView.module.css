@@ -48,7 +48,7 @@
 .lineLot { font-size: 11px; background: #fef3e2; color: #ba7517; border-radius: 4px; padding: 1px 5px; }
 
 /* Documents */
-.docs { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 6px; margin-bottom: 10px; }
+.docs { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 10px; }
 .docSlot {}
 .docPresent { display: flex; align-items: center; gap: 6px; padding: 6px 8px; background: #e8f5ee; border-radius: 7px; font-size: 12px; }
 .docPresent i { color: #0f6e56; font-size: 14px; flex-shrink: 0; }
@@ -58,11 +58,11 @@
 .docAction:hover { background: white; color: var(--green); }
 .docMissing {
   display: flex; align-items: center; gap: 6px; width: 100%;
-  padding: 6px 8px; border: 0.5px dashed var(--border-mid);
-  border-radius: 7px; font-size: 12px; color: var(--muted);
-  transition: all 0.12s; background: none;
+  padding: 8px 10px; border: 1px dashed var(--border-mid);
+  border-radius: 8px; font-size: 12px; color: var(--muted);
+  transition: all 0.15s; background: #fafaf8; cursor: pointer;
 }
-.docMissing:hover { border-color: var(--green); color: var(--green); background: var(--green-light); }
+.docMissing:hover { border-color: var(--green); color: var(--green); background: var(--green-light); border-style: solid; }
 .docMissing i:first-child { font-size: 14px; flex-shrink: 0; }
 .docMissing span { flex: 1; text-align: left; }
 
