@@ -133,10 +133,14 @@ export default function AppShell({ user, profile, initialSections }: Props) {
             selected={selected}
             onSelect={(s) => { setSelected(s); setView('feed'); setShowCalendar(false); setShowUsers(false); setShowSearch(false); markSectionRead(s.id); setSidebarOpen(window.innerWidth > 640) }}
             unreadCounts={unreadCounts}
-            onHome={() => { setSelected(null); setShowUsers(false); setShowSearch(false); setShowCalendar(false); setSidebarOpen(window.innerWidth > 640) }}
-            onUsers={() => { setShowUsers(true); setSelected(null); setShowCalendar(false); setSidebarOpen(window.innerWidth > 640) }}
-            onCalendar={() => { setShowCalendar(true); setSelected(null); setShowUsers(false); setSidebarOpen(window.innerWidth > 640) }}
-            showCalendar={showCalendar}
+            onHome={() => { setSelected(null); setShowUsers(false); setShowSearch(false); setSidebarOpen(window.innerWidth > 640) }}
+            onUsers={() => { setShowUsers(true); setSelected(null); setSidebarOpen(window.innerWidth > 640) }}
+            onCalendar={() => {
+              const plan = sections.find(s => s.label.toLowerCase() === 'planning')
+              if (plan) { setSelected(plan as SectionTree); setShowUsers(false) }
+              setSidebarOpen(window.innerWidth > 640)
+            }}
+            showCalendar={selected?.label.toLowerCase() === 'planning'}
             onClose={() => setSidebarOpen(false)}
             onAddSection={() => setShowAddSection(true)}
             onDelete={handleDeleteSection}
@@ -160,15 +164,17 @@ export default function AppShell({ user, profile, initialSections }: Props) {
         <div className={styles.content}>
           {showSearch && <SearchView supabase={supabase} sections={sections} onNavigate={(sid, v) => { setSelected(sections.find(s => s.id === sid) as SectionTree || null); setView(v); setShowSearch(false) }} />}
           {showUsers && !showSearch && <UsersView currentUserId={user.id} />}
-          {showCalendar && !showSearch && !showUsers && <CalendarView supabase={supabase} userId={user.id} profile={profile} sections={sections} />}
-          {!showUsers && !showSearch && !showCalendar && !selected && (
+          {!showUsers && !showSearch && !selected && (
             <HomeView
               tree={tree}
               onSelect={(s) => { setSelected(s); setView('feed') }}
               supabase={supabase}
               profile={profile}
               sections={sections}
-              onCalendar={() => setShowCalendar(true)}
+              onCalendar={() => {
+                const plan = sections.find(s => s.label.toLowerCase() === 'planning')
+                if (plan) setSelected(plan as SectionTree)
+              }}
               onCommandes={() => {
                 const cmd = sections.find(s => s.label.toLowerCase() === 'commandes')
                 if (cmd) setSelected(cmd as SectionTree)
@@ -179,14 +185,25 @@ export default function AppShell({ user, profile, initialSections }: Props) {
               }}
             />
           )}
+          {!showUsers && selected && selected.label.toLowerCase() === 'planning' && (
+            <CalendarView supabase={supabase} userId={user.id} profile={profile} sections={sections} />
+          )}
           {!showUsers && selected && selected.label.toLowerCase().includes('irrigation') && <WeenatView />}
           {!showUsers && selected && selected.label.toLowerCase() === 'commandes' && (
             <CommandesView sectionId={selected.id} userId={user.id} profile={profile} supabase={supabase} />
           )}
-          {!showUsers && selected && !selected.label.toLowerCase().includes('irrigation') && selected.label.toLowerCase() !== 'commandes' && view === 'feed' && (
+          {!showUsers && !showSearch && selected &&
+            selected.label.toLowerCase() !== 'planning' &&
+            !selected.label.toLowerCase().includes('irrigation') &&
+            selected.label.toLowerCase() !== 'commandes' &&
+            view === 'feed' && (
             <FeedView sectionId={selected.id} userId={user.id} profile={profile} supabase={supabase} />
           )}
-          {!showUsers && selected && view === 'docs' && (
+          {!showUsers && selected &&
+            selected.label.toLowerCase() !== 'planning' &&
+            !selected.label.toLowerCase().includes('irrigation') &&
+            selected.label.toLowerCase() !== 'commandes' &&
+            view === 'docs' && (
             <DocsView sectionId={selected.id} userId={user.id} profile={profile} supabase={supabase} />
           )}
         </div>
