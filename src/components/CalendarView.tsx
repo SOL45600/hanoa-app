@@ -136,7 +136,7 @@ function TaskModal({ weekDate, rowKey, rowLabel, profiles, userId, onSave, onClo
             <input autoFocus required value={form.title}
               onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
               placeholder="Décrivez la tâche…"
-              onKeyDown={e => { if (e.key === 'Enter' && form.title.trim()) onSave({ ...form, row_key: rowKey, week_start: weekKey(weekDate) }) }}
+              onKeyDown={e => { if (e.key === 'Enter' && form.title.trim()) onSave({ ...form, assigned_to: form.assigned_to || undefined, row_key: rowKey, week_start: weekKey(weekDate) }) }}
             />
           </div>
           <div className={styles.field}>
@@ -168,7 +168,12 @@ function TaskModal({ weekDate, rowKey, rowLabel, profiles, userId, onSave, onClo
           <button onClick={onClose} className={styles.cancelBtn}>Annuler</button>
           <button
             disabled={!form.title.trim()}
-            onClick={() => onSave({ ...form, row_key: rowKey, week_start: weekKey(weekDate) })}
+            onClick={() => onSave({
+              ...form,
+              assigned_to: form.assigned_to || undefined,
+              row_key: rowKey,
+              week_start: weekKey(weekDate)
+            })}
             className={styles.saveBtn}>
             Ajouter
           </button>

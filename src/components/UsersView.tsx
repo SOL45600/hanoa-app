@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { createClient } from '@/lib/supabase'
 import { Profile } from '@/lib/types'
 import styles from './UsersView.module.css'
 
@@ -21,48 +22,35 @@ export default function UsersView({ currentUserId }: { currentUserId: string }) 
   const [showAdd, setShowAdd] = useState(false)
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState('')
+  const supabase = createClient()
 
   const [form, setForm] = useState({
     email: '', full_name: '', initials: '', color: COLORS[0], role: 'member'
   })
 
-  useEffect(() => {
-    fetch('/api/admin/users')
-      .then(r => r.json())
-      .then(d => { setUsers(Array.isArray(d) ? d : []); setLoading(false) })
-      .catch(() => setLoading(false))
-  }, [])
+  const loadUsers = async () => {
+    const { data } = await supabase.from('profiles').select('*').order('full_name')
+    setUsers(data || [])
+    setLoading(false)
+  }
+
+  useEffect(() => { loadUsers() }, [])
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
     setMsg('')
-    const res = await fetch('/api/admin/users', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form),
-    })
-    const data = await res.json()
-    if (res.ok) {
-      setMsg('Utilisateur créé. Un email de connexion sera envoyé.')
-      setShowAdd(false)
-      setForm({ email: '', full_name: '', initials: '', color: COLORS[0], role: 'member' })
-      // Reload
-      const r = await fetch('/api/admin/users')
-      const d = await r.json()
-      setUsers(Array.isArray(d) ? d : [])
-    } else {
-      setMsg(`Erreur : ${data.error}`)
-    }
+    setMsg(`Pour créer ${form.full_name} :
+1. Supabase → Authentication → Users → "Add user" → "Create new user"
+2. Email : ${form.email} · Mot de passe : choisir · Cocher "Auto Confirm"
+3. Puis SQL Editor → exécuter :
+   UPDATE profiles SET full_name='${form.full_name}', initials='${form.initials || form.full_name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0,2)}', color='${form.color}', role='${form.role}' WHERE id=(SELECT id FROM auth.users WHERE email='${form.email}');`)
+    setShowAdd(false)
     setSaving(false)
   }
 
   const handleRoleChange = async (userId: string, role: string) => {
-    await fetch('/api/admin/users', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: userId, role }),
-    })
+    await supabase.from('profiles').update({ role }).eq('id', userId)
     setUsers(u => u.map(usr => usr.id === userId ? { ...usr, role: role as Profile['role'] } : usr))
   }
 
