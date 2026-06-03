@@ -64,9 +64,8 @@
 .pinBtn:hover { color: var(--green); background: var(--green-light); }
 
 .deletePostBtn {
-  opacity: 0; padding: 3px 5px; color: #ccc; border-radius: 5px; transition: all 0.12s;
+  padding: 3px 5px; color: #d3d1c7; border-radius: 5px; transition: all 0.12s; flex-shrink: 0;
 }
-.post:hover .deletePostBtn { opacity: 1; }
 .deletePostBtn:hover { color: #d85a30; background: #faece7; }
 
 .postText { font-size: 14px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
@@ -106,10 +105,9 @@
 
 /* Delete comment */
 .deleteComment {
-  opacity: 0; padding: 3px 5px; border-radius: 5px;
-  color: #ccc; transition: all 0.12s; flex-shrink: 0; align-self: flex-start; margin-top: 2px;
+  padding: 3px 5px; border-radius: 5px;
+  color: #d3d1c7; transition: all 0.12s; flex-shrink: 0; align-self: flex-start; margin-top: 2px;
 }
-.comment:hover .deleteComment { opacity: 1; }
 .deleteComment:hover { color: #d85a30; background: #faece7; }
 
 /* Comment input with mention support */

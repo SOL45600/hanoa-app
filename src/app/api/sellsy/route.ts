@@ -40,12 +40,26 @@ export async function GET(request: NextRequest) {
     const thisYear = new Date().getFullYear().toString()
     const thisMonth = new Date().toISOString().slice(0, 7)
 
-    // Fetch enough invoices to cover the full year (up to 200)
-    const [invoicesData, companiesData] = await Promise.all([
-      sellsyFetch(`/invoices?limit=200&order[created]=desc&date[after]=${thisYear}-01-01`),
+    // Paginate through ALL invoices to get accurate yearly totals
+    let allInvoices: any[] = []
+    let offset = 0
+    const pageSize = 100
+    while (true) {
+      const page = await sellsyFetch(`/invoices?limit=${pageSize}&offset=${offset}&order[date]=desc`)
+      const items: any[] = page.data || []
+      allInvoices = allInvoices.concat(items)
+      // Stop when we've gone past this year or no more data
+      if (items.length < pageSize) break
+      const oldest = items[items.length - 1]?.date || ''
+      if (oldest && oldest < `${thisYear}-01-01`) break
+      offset += pageSize
+      if (offset > 1000) break // safety
+    }
+
+    const [companiesData] = await Promise.all([
       sellsyFetch('/companies?limit=1'),
     ])
-    const invoices: any[] = invoicesData.data || []
+    const invoices = allInvoices
 
     const monthlyCA = invoices
       .filter(i => i.date?.startsWith(thisMonth))
