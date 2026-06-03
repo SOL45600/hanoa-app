@@ -8,6 +8,7 @@ interface Props {
   sections: Section[]
   selected: SectionTree | null
   onSelect: (s: SectionTree) => void
+  onHome: () => void
   onClose: () => void
   onAddSection: () => void
   onDelete: (id: string) => void
@@ -87,20 +88,27 @@ function SectionNode({ node, depth, selected, onSelect, onDelete, onRename }: {
   )
 }
 
-export default function Sidebar({ tree, sections, selected, onSelect, onClose, onAddSection, onDelete, onRename, profile, onLogout }: Props) {
+export default function Sidebar({ tree, sections, selected, onSelect, onHome, onClose, onAddSection, onDelete, onRename, profile, onLogout }: Props) {
   return (
     <div className={styles.sidebar}>
       <div className={styles.header}>
-        <div className={styles.logo}>
-          <i className="ti ti-leaf" />
-        </div>
-        <span className={styles.brand}>HANOA</span>
+        <button onClick={onHome} className={styles.logoBtn} title="Accueil">
+          <div className={styles.logo}><i className="ti ti-leaf" /></div>
+          <span className={styles.brand}>HANOA</span>
+        </button>
         <button onClick={onClose} className={styles.closeBtn} title="Fermer">
           <i className="ti ti-layout-sidebar-left-collapse" style={{ fontSize: 16 }} />
         </button>
       </div>
 
       <div className={styles.nav}>
+        <button
+          className={`${styles.homeBtn} ${!selected ? styles.homeBtnActive : ''}`}
+          onClick={onHome}
+        >
+          <i className="ti ti-home" style={{ fontSize: 15 }} />
+          <span>Accueil</span>
+        </button>
         <p className={styles.navLabel}>Rubriques</p>
         {tree.map(node => (
           <SectionNode key={node.id} node={node} depth={0} selected={selected}

@@ -79,6 +79,7 @@ export default function AppShell({ user, profile, initialSections }: Props) {
             sections={sections}
             selected={selected}
             onSelect={(s) => { setSelected(s); setView('feed'); setSidebarOpen(window.innerWidth > 640) }}
+            onHome={() => { setSelected(null); setSidebarOpen(window.innerWidth > 640) }}
             onClose={() => setSidebarOpen(false)}
             onAddSection={() => setShowAddSection(true)}
             onDelete={handleDeleteSection}
