@@ -41,19 +41,20 @@ export async function GET(request: NextRequest) {
     const thisMonth = new Date().toISOString().slice(0, 7)
     const fiscalStart = `${thisYear}-01-01` // Exercice fiscal depuis 01/01/2026
 
-    // Paginate through all invoices since fiscal start
+    // Paginate through all invoices — fetch up to 500 to cover fiscal year
     let allInvoices: any[] = []
     let offset = 0
     const pageSize = 100
-    while (true) {
-      const page = await sellsyFetch(`/invoices?limit=${pageSize}&offset=${offset}&order[date]=desc`)
+    for (let p = 0; p < 5; p++) {
+      const page = await sellsyFetch(`/invoices?limit=${pageSize}&offset=${offset}&embed[]=amounts`)
       const items: any[] = page.data || []
+      if (!items.length) break
       allInvoices = allInvoices.concat(items)
       if (items.length < pageSize) break
+      // Stop if we've gone past the fiscal year
       const oldest = items[items.length - 1]?.date || ''
-      if (oldest && oldest < fiscalStart) break // Stop when past fiscal year start
+      if (oldest && oldest < fiscalStart) break
       offset += pageSize
-      if (offset > 2000) break
     }
 
     const [companiesData] = await Promise.all([

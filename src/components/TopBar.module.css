@@ -20,6 +20,11 @@
 }
 .menuBtn:hover { background: var(--bg); }
 
+.backBtn {
+  padding: 5px; border-radius: 6px; color: var(--muted); display: flex;
+}
+.backBtn:hover { background: var(--bg); }
+
 .searchBtn {
   padding: 6px; border-radius: 7px; color: var(--muted);
   display: flex; align-items: center; justify-content: center;

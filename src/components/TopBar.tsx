@@ -11,12 +11,18 @@ interface Props {
   onToggleSidebar: () => void
   onSearch: () => void
   isSearching: boolean
+  onBack?: () => void // back to parent section on mobile
 }
 
-export default function TopBar({ section, view, setView, profile, sidebarOpen, onToggleSidebar, onSearch, isSearching }: Props) {
+export default function TopBar({ section, view, setView, profile, sidebarOpen, onToggleSidebar, onSearch, isSearching, onBack }: Props) {
   return (
     <div className={styles.bar}>
-      {!sidebarOpen && (
+      {!sidebarOpen && onBack && section?.parent_id && (
+        <button onClick={onBack} className={styles.backBtn} title="Retour">
+          <i className="ti ti-arrow-left" style={{ fontSize: 18 }} />
+        </button>
+      )}
+      {!sidebarOpen && (!section?.parent_id || !onBack) && (
         <button onClick={onToggleSidebar} className={styles.menuBtn} title="Ouvrir le menu">
           <i className="ti ti-layout-sidebar" style={{ fontSize: 18 }} />
         </button>

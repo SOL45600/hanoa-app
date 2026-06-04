@@ -161,6 +161,14 @@ export default function AppShell({ user, profile, initialSections }: Props) {
           onToggleSidebar={() => setSidebarOpen(o => !o)}
           onSearch={() => { setShowSearch(s => !s); setShowUsers(false) }}
           isSearching={showSearch}
+          onBack={() => {
+            if (selected?.parent_id) {
+              const parent = sections.find(s => s.id === selected.parent_id)
+              if (parent) setSelected(parent as SectionTree)
+            } else {
+              setSelected(null)
+            }
+          }}
         />
         <div className={styles.content}>
           {showSearch && <SearchView supabase={supabase} sections={sections} onNavigate={(sid, v) => { setSelected(sections.find(s => s.id === sid) as SectionTree || null); setView(v); setShowSearch(false) }} />}
