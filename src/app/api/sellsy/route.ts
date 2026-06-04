@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
   if (type === 'dashboard') {
     const thisYear = new Date().getFullYear().toString()
     const thisMonth = new Date().toISOString().slice(0, 7)
-    const fiscalStart = `${parseInt(thisYear) - 1}-01-01` // Exercice fiscal Sellsy depuis 01/01 année précédente
+    const fiscalStart = `${thisYear}-01-01` // Exercice fiscal depuis 01/01/2026
 
     // Paginate through all invoices since fiscal start
     let allInvoices: any[] = []
