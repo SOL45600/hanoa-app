@@ -223,13 +223,21 @@ function NewOrderForm({ sectionId, userId, supabase, onCreated, onCancel }: {
   })
   const [lines, setLines] = useState<OrderLine[]>([emptyLine()])
   const [lineFinishedLots, setLineFinishedLots] = useState<Record<number, string>>({})
-  const [availableLots, setAvailableLots] = useState<{id: string; lot_number: string; product_type: string; format: string; units_remaining: number}[]>([])
+  const [availableLots, setAvailableLots] = useState<{
+    id: string; lot_number: string; product_type: string; product_name: string
+    format: string; units_remaining: number; variety?: string
+  }[]>([])
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    supabase.from('finished_lots').select('id, lot_number, product_type, format, units_remaining')
-      .gt('units_remaining', 0).order('production_date', { ascending: false })
-      .then(({ data }) => setAvailableLots(data || []))
+    supabase.from('finished_lots')
+      .select('id, lot_number, product_type, product_name, format, units_remaining, lots(variety)')
+      .gt('units_remaining', 0)
+      .order('production_date', { ascending: false })
+      .then(({ data }) => setAvailableLots((data || []).map((d: any) => ({
+        ...d,
+        variety: d.lots?.variety || '',
+      }))))
   }, [])
 
   const setField = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }))
@@ -319,20 +327,44 @@ function NewOrderForm({ sectionId, userId, supabase, onCreated, onCancel }: {
             </select>
             <input value={line.packaging} onChange={e => setLine(i, 'packaging', e.target.value)} placeholder="Conditionnement" className={styles.lineInput} />
             <input value={line.lot_number} onChange={e => setLine(i, 'lot_number', e.target.value)} placeholder="N° lot" className={styles.lineInput} />
-            {/* Stock lot selector */}
+            {/* Stock lot selector — auto-fills all fields */}
             {availableLots.length > 0 && (
               <select className={styles.lineSelect}
                 value={lineFinishedLots[i] || ''}
                 onChange={e => {
                   const fl = availableLots.find(l => l.id === e.target.value)
                   setLineFinishedLots(prev => ({ ...prev, [i]: e.target.value }))
-                  if (fl) setLine(i, 'lot_number', fl.lot_number)
+                  if (fl) {
+                    // Auto-fill all line fields from the selected lot
+                    const VARIETY_NAMES: Record<string,string> = {
+                      PAU:'Pauetet', COR:'Corabel', TON:'Tonda', SEG:'Segorbe', LEW:'Lewis'
+                    }
+                    const PRODUCT_NAMES: Record<string,string> = {
+                      D:'Noisettes décortiquées BIO', T:'Noisettes torréfiées BIO',
+                      P:'Poudre de noisettes BIO', H:'Huile de noisettes BIO',
+                    }
+                    // Parse format: "5 KG" → qty=5 unit=kg | "250g" → qty=250 unit=g | "3L" → qty=3 unit=L
+                    const fmt = fl.format.toLowerCase()
+                    let qty = '', unit = 'kg'
+                    const m = fmt.match(/^(\d+)\s*(kg|g|l|cl|ml)/)
+                    if (m) { qty = m[1]; unit = m[2] }
+
+                    setLines(ls => ls.map((l, j) => j !== i ? l : {
+                      ...l,
+                      product: PRODUCT_NAMES[fl.product_type] || fl.product_name,
+                      variety: fl.variety ? (VARIETY_NAMES[fl.variety] || fl.variety) : l.variety,
+                      quantity: qty,
+                      unit,
+                      packaging: fl.format,
+                      lot_number: fl.lot_number,
+                    }))
+                  }
                 }}
-                title="Lier au stock">
-                <option value="">Stock (optionnel)</option>
+                title="Sélectionner depuis le stock — remplit automatiquement">
+                <option value="">— Choisir dans le stock —</option>
                 {availableLots.map(l => (
                   <option key={l.id} value={l.id}>
-                    {l.lot_number} · {l.format} · {l.units_remaining}u
+                    {l.lot_number} · {l.format} · {l.units_remaining} unités
                   </option>
                 ))}
               </select>
