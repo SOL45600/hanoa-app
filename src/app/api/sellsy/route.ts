@@ -60,19 +60,24 @@ export async function GET(request: NextRequest) {
     const [companiesData] = await Promise.all([
       sellsyFetch('/companies?limit=1'),
     ])
-    const invoices = allInvoices
 
-    const monthlyCA = invoices
-      .filter(i => i.date?.startsWith(thisMonth))
-      .reduce((s, i) => s + parseFloat(i.amounts?.total_excl_tax || '0'), 0)
+    // Sort newest first + exclude drafts/proformas from CA (match Sellsy dashboard)
+    const CA_STATUSES = ['paid', 'late', 'sent', 'read', 'partial']
+    const invoices = allInvoices.sort((a: any, b: any) => (b.date || '').localeCompare(a.date || ''))
+    const invoicesForCA = invoices.filter((i: any) => CA_STATUSES.includes(i.status))
 
-    // Fiscal year CA = all invoices since fiscal start
-    const fiscalCA = invoices
-      .filter(i => i.date >= fiscalStart)
-      .reduce((s, i) => s + parseFloat(i.amounts?.total_excl_tax || '0'), 0)
+    const monthlyCA = invoicesForCA
+      .filter((i: any) => i.date?.startsWith(thisMonth))
+      .reduce((s: number, i: any) => s + parseFloat(i.amounts?.total_excl_tax || '0'), 0)
 
-    const unpaidAll = invoices.filter(i => parseFloat(i.amounts?.total_remaining_due_incl_tax || '1') > 0)
-    const totalUnpaid = unpaidAll.reduce((s, i) => s + parseFloat(i.amounts?.total_remaining_due_incl_tax || '0'), 0)
+    // Fiscal year CA — only counted statuses, matches Sellsy exercice fiscal
+    const fiscalCA = invoicesForCA
+      .filter((i: any) => i.date >= fiscalStart)
+      .reduce((s: number, i: any) => s + parseFloat(i.amounts?.total_excl_tax || '0'), 0)
+
+    const unpaidAll = invoices.filter((i: any) => parseFloat(i.amounts?.total_remaining_due_incl_tax || '1') > 0)
+      .sort((a: any, b: any) => (b.date || '').localeCompare(a.date || ''))
+    const totalUnpaid = unpaidAll.reduce((s: number, i: any) => s + parseFloat(i.amounts?.total_remaining_due_incl_tax || '0'), 0)
 
     // Monthly breakdown: last 12 months
     const monthlyBreakdown: Record<string, number> = {}
@@ -95,7 +100,8 @@ export async function GET(request: NextRequest) {
       unpaid_year_count: unpaidAll.length,
       unpaid_year_amount: totalUnpaid,
       monthly_breakdown: Object.fromEntries(Object.entries(monthlyBreakdown).reverse()),
-      recent_invoices: invoices.slice(0, 15).map(i => ({
+      // Already sorted newest first
+      recent_invoices: invoices.slice(0, 15).map((i: any) => ({
         id: i.id,
         number: i.number,
         date: i.date,
@@ -103,7 +109,8 @@ export async function GET(request: NextRequest) {
         remaining: parseFloat(i.amounts?.total_remaining_due_incl_tax || '0'),
         paid: parseFloat(i.amounts?.total_remaining_due_incl_tax || '0') === 0,
       })),
-      unpaid_invoices: unpaidAll.map(i => ({
+      // Already sorted newest first
+      unpaid_invoices: unpaidAll.map((i: any) => ({
         id: i.id,
         number: i.number,
         date: i.date,
