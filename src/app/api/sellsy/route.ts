@@ -39,8 +39,9 @@ export async function GET(request: NextRequest) {
   if (type === 'dashboard') {
     const thisYear = new Date().getFullYear().toString()
     const thisMonth = new Date().toISOString().slice(0, 7)
+    const fiscalStart = `${parseInt(thisYear) - 1}-01-01` // Exercice fiscal Sellsy depuis 01/01 année précédente
 
-    // Paginate through ALL invoices to get accurate yearly totals
+    // Paginate through all invoices since fiscal start
     let allInvoices: any[] = []
     let offset = 0
     const pageSize = 100
@@ -48,12 +49,11 @@ export async function GET(request: NextRequest) {
       const page = await sellsyFetch(`/invoices?limit=${pageSize}&offset=${offset}&order[date]=desc`)
       const items: any[] = page.data || []
       allInvoices = allInvoices.concat(items)
-      // Stop when we've gone past this year or no more data
       if (items.length < pageSize) break
       const oldest = items[items.length - 1]?.date || ''
-      if (oldest && oldest < `${thisYear}-01-01`) break
+      if (oldest && oldest < fiscalStart) break // Stop when past fiscal year start
       offset += pageSize
-      if (offset > 1000) break // safety
+      if (offset > 2000) break
     }
 
     const [companiesData] = await Promise.all([
@@ -65,19 +65,20 @@ export async function GET(request: NextRequest) {
       .filter(i => i.date?.startsWith(thisMonth))
       .reduce((s, i) => s + parseFloat(i.amounts?.total_excl_tax || '0'), 0)
 
-    const yearlyCA = invoices
-      .filter(i => i.date?.startsWith(thisYear))
+    // Fiscal year CA = all invoices since fiscal start
+    const fiscalCA = invoices
+      .filter(i => i.date >= fiscalStart)
       .reduce((s, i) => s + parseFloat(i.amounts?.total_excl_tax || '0'), 0)
 
     const unpaidAll = invoices.filter(i => parseFloat(i.amounts?.total_remaining_due_incl_tax || '1') > 0)
-    const unpaidYear = unpaidAll.filter(i => i.date?.startsWith(thisYear))
     const totalUnpaid = unpaidAll.reduce((s, i) => s + parseFloat(i.amounts?.total_remaining_due_incl_tax || '0'), 0)
-    const totalUnpaidYear = unpaidYear.reduce((s, i) => s + parseFloat(i.amounts?.total_remaining_due_incl_tax || '0'), 0)
 
-    // Monthly breakdown for current year
+    // Monthly breakdown: last 12 months
     const monthlyBreakdown: Record<string, number> = {}
-    for (let m = 1; m <= 12; m++) {
-      const key = `${thisYear}-${String(m).padStart(2, '0')}`
+    for (let m = 0; m < 12; m++) {
+      const d = new Date()
+      d.setMonth(d.getMonth() - m)
+      const key = d.toISOString().slice(0, 7)
       monthlyBreakdown[key] = invoices
         .filter(i => i.date?.startsWith(key))
         .reduce((s, i) => s + parseFloat(i.amounts?.total_excl_tax || '0'), 0)
@@ -85,14 +86,14 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       monthly_ca: monthlyCA,
-      yearly_ca: yearlyCA,
-      yearly_year: thisYear,
+      yearly_ca: fiscalCA,
+      yearly_year: `${parseInt(thisYear) - 1}–${thisYear}`,
       total_clients: companiesData.pagination?.total || 0,
       unpaid_count: unpaidAll.length,
       unpaid_amount: totalUnpaid,
-      unpaid_year_count: unpaidYear.length,
-      unpaid_year_amount: totalUnpaidYear,
-      monthly_breakdown: monthlyBreakdown,
+      unpaid_year_count: unpaidAll.length,
+      unpaid_year_amount: totalUnpaid,
+      monthly_breakdown: Object.fromEntries(Object.entries(monthlyBreakdown).reverse()),
       recent_invoices: invoices.slice(0, 15).map(i => ({
         id: i.id,
         number: i.number,
@@ -101,7 +102,7 @@ export async function GET(request: NextRequest) {
         remaining: parseFloat(i.amounts?.total_remaining_due_incl_tax || '0'),
         paid: parseFloat(i.amounts?.total_remaining_due_incl_tax || '0') === 0,
       })),
-      unpaid_invoices: unpaidYear.map(i => ({
+      unpaid_invoices: unpaidAll.map(i => ({
         id: i.id,
         number: i.number,
         date: i.date,
