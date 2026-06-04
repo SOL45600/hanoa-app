@@ -146,19 +146,36 @@ function OrderCard({ order, onStatusChange, onUpload, onPreview, onDownload, onD
 
       {order.lines && order.lines.length > 0 && <LinesDisplay lines={order.lines} />}
 
-      {/* Étiquettes lots liés */}
+      {/* Étiquettes lots — depuis lignes liées OU lot_number de la commande */}
       {(() => {
-        const lotsWithLabel = (order.lines || []).filter((l: any) => l.finished_lots?.lot_number)
-        if (lotsWithLabel.length === 0) return null
+        // Collect all lot numbers: from linked finished_lots or from line lot_number field
+        const lotNumbers = new Set<string>()
+
+        // From linked finished lots (via stock selector)
+        ;(order.lines || []).forEach((l: any) => {
+          if (l.finished_lots?.lot_number) lotNumbers.add(l.finished_lots.lot_number)
+        })
+
+        // From manually entered lot numbers on lines
+        ;(order.lines || []).forEach((l: any) => {
+          if (l.lot_number && l.lot_number.trim() && !l.lot_number.toLowerCase().includes('xxxx'))
+            lotNumbers.add(l.lot_number.trim())
+        })
+
+        // From the order-level lot_number
+        if (order.lot_number && order.lot_number.trim() && !order.lot_number.toLowerCase().includes('xxxx'))
+          lotNumbers.add(order.lot_number.trim())
+
+        if (lotNumbers.size === 0) return null
         return (
           <div className={styles.lotLabels}>
-            {lotsWithLabel.map((l: any) => (
-              <a key={l.id}
-                href={`/api/export/lot-label?lot=${encodeURIComponent(l.finished_lots.lot_number)}`}
+            {Array.from(lotNumbers).map(ln => (
+              <a key={ln}
+                href={`/api/export/lot-label?lot=${encodeURIComponent(ln)}`}
                 target="_blank"
                 className={styles.lotLabelBtn}>
                 <i className="ti ti-tag" style={{ fontSize: 12 }} />
-                Étiquette {l.finished_lots.lot_number}
+                Étiquette {ln}
               </a>
             ))}
           </div>
