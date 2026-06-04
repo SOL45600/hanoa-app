@@ -57,9 +57,16 @@ export async function GET(request: NextRequest) {
       if (items.length < pageSize || !cursor) break
     }
 
-    const [companiesData] = await Promise.all([
+    const [companiesData, creditNotesData] = await Promise.all([
       sellsyFetch('/companies?limit=1'),
+      sellsyFetch('/credit-notes?limit=100'),
     ])
+
+    // Credit notes reduce CA (avoirs)
+    const creditNotes: any[] = creditNotesData.data || []
+    const creditNotes2026 = creditNotes
+      .filter((c: any) => c.status !== 'draft' && (c.date || '') >= fiscalStart)
+      .reduce((s: number, c: any) => s + parseFloat(c.amounts?.total_excl_tax || '0'), 0)
 
     // Sort newest first
     const invoices = allInvoices.sort((a: any, b: any) => (b.date || '').localeCompare(a.date || ''))
@@ -71,10 +78,11 @@ export async function GET(request: NextRequest) {
       .filter((i: any) => i.date?.startsWith(thisMonth))
       .reduce((s: number, i: any) => s + parseFloat(i.amounts?.total_excl_tax || '0'), 0)
 
-    // Fiscal year CA (excludes drafts)
+    // Fiscal year CA = invoices - avoirs (matches Sellsy exactly)
     const fiscalCA = invoicesForCA
       .filter((i: any) => i.date >= fiscalStart)
       .reduce((s: number, i: any) => s + parseFloat(i.amounts?.total_excl_tax || '0'), 0)
+      - creditNotes2026
 
     // Unpaid = only 'due' + 'late' (excludes drafts) — matches Sellsy "À régler" + "En retard"
     const unpaidAll = invoices
