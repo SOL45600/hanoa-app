@@ -102,11 +102,12 @@ function LinesDisplay({ lines }: { lines: OrderLine[] }) {
 }
 
 /* ─── ORDER CARD (À PRÉPARER) ────────────────────────────────── */
-function OrderCard({ order, onStatusChange, onUpload, onPreview, onDownload, userId, supabase }: {
+function OrderCard({ order, onStatusChange, onUpload, onPreview, onDownload, onDelete, userId, supabase }: {
   order: Order
   onStatusChange: (id: string, status: string) => void
   onUpload: (orderId: string, docType: string, file: File) => void
   onPreview: (att: OrderAttachment) => void
+  onDelete: (id: string) => void
   onDownload: (path: string) => void
   userId: string
   supabase: SupabaseClient
@@ -123,6 +124,15 @@ function OrderCard({ order, onStatusChange, onUpload, onPreview, onDownload, use
       <div className={styles.cardHeader}>
         <span className={styles.orderNum}>#{order.order_number}</span>
         <StatusSelect status={order.status} onChange={s => onStatusChange(order.id, s)} />
+        <button
+          className={styles.deleteOrderBtn}
+          title="Supprimer cette commande"
+          onClick={() => {
+            if (confirm(`Supprimer la commande #${order.order_number} ? Cette action est irréversible.`))
+              onDelete(order.id)
+          }}>
+          <i className="ti ti-trash" style={{ fontSize: 14 }} />
+        </button>
       </div>
 
       <div className={styles.cardMeta}>
@@ -584,6 +594,17 @@ export default function CommandesView({ sectionId, userId, profile, supabase }: 
     setOrders(os => os.map(o => o.id === orderId ? { ...o, status: newStatus } : o))
   }
 
+  const handleDelete = async (orderId: string) => {
+    // Delete attachments from storage first
+    const { data: atts } = await supabase.from('order_attachments').select('storage_path').eq('order_id', orderId)
+    if (atts?.length) {
+      await supabase.storage.from('hanoa-files').remove(atts.map((a: any) => a.storage_path))
+    }
+    // Delete order (cascades to order_lines, order_attachments)
+    await supabase.from('orders').delete().eq('id', orderId)
+    setOrders(os => os.filter(o => o.id !== orderId))
+  }
+
   const handleUpload = async (orderId: string, docType: string, file: File) => {
     const path = `${userId}/commandes/${orderId}/${docType}-${Date.now()}-${file.name}`
     const { error } = await supabase.storage.from('hanoa-files').upload(path, file)
@@ -658,6 +679,7 @@ export default function CommandesView({ sectionId, userId, profile, supabase }: 
           {pending.map(o => (
             <OrderCard key={o.id} order={o}
               onStatusChange={handleStatusChange}
+              onDelete={handleDelete}
               onUpload={handleUpload}
               onPreview={setPreview}
               onDownload={handleDownload}
