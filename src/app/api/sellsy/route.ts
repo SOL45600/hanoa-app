@@ -61,21 +61,24 @@ export async function GET(request: NextRequest) {
       sellsyFetch('/companies?limit=1'),
     ])
 
-    // Sort newest first + exclude drafts/proformas from CA (match Sellsy dashboard)
-    const CA_STATUSES = ['paid', 'late', 'sent', 'read', 'partial']
+    // Sort newest first
     const invoices = allInvoices.sort((a: any, b: any) => (b.date || '').localeCompare(a.date || ''))
-    const invoicesForCA = invoices.filter((i: any) => CA_STATUSES.includes(i.status))
+
+    // Exclude drafts for all CA calculations (matches Sellsy)
+    const invoicesForCA = invoices.filter((i: any) => i.status !== 'draft')
 
     const monthlyCA = invoicesForCA
       .filter((i: any) => i.date?.startsWith(thisMonth))
       .reduce((s: number, i: any) => s + parseFloat(i.amounts?.total_excl_tax || '0'), 0)
 
-    // Fiscal year CA — only counted statuses, matches Sellsy exercice fiscal
+    // Fiscal year CA (excludes drafts)
     const fiscalCA = invoicesForCA
       .filter((i: any) => i.date >= fiscalStart)
       .reduce((s: number, i: any) => s + parseFloat(i.amounts?.total_excl_tax || '0'), 0)
 
-    const unpaidAll = invoices.filter((i: any) => parseFloat(i.amounts?.total_remaining_due_incl_tax || '1') > 0)
+    // Unpaid = only 'due' + 'late' (excludes drafts) — matches Sellsy "À régler" + "En retard"
+    const unpaidAll = invoices
+      .filter((i: any) => ['due', 'late'].includes(i.status) && parseFloat(i.amounts?.total_remaining_due_incl_tax || '0') > 0)
       .sort((a: any, b: any) => (b.date || '').localeCompare(a.date || ''))
     const totalUnpaid = unpaidAll.reduce((s: number, i: any) => s + parseFloat(i.amounts?.total_remaining_due_incl_tax || '0'), 0)
 
