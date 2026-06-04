@@ -6,10 +6,8 @@ const VARIETIES: Record<string, string> = {
   PAU: 'Pauetet', COR: 'Corabel', TON: 'Tonda', SEG: 'Segorbe', LEW: 'Lewis',
 }
 const PRODUCTS: Record<string, string> = {
-  D: 'Noisettes décortiquées',
-  T: 'Noisettes torréfiées',
-  P: 'Poudre de noisettes',
-  H: 'Huile de noisettes',
+  D: 'Noisettes décortiquées', T: 'Noisettes torréfiées',
+  P: 'Poudre de noisettes',   H: 'Huile de noisettes',
 }
 
 function fmtDate(d?: string) {
@@ -27,44 +25,47 @@ export async function GET(request: NextRequest) {
     { auth: { autoRefreshToken: false, persistSession: false } }
   )
 
-  // Query 1: finished lot
   const { data: fl } = await db
-    .from('finished_lots')
-    .select('*')
-    .eq('lot_number', lotNumber)
-    .maybeSingle()
+    .from('finished_lots').select('*')
+    .eq('lot_number', lotNumber).maybeSingle()
 
-  if (!fl) return NextResponse.json({ error: 'Lot introuvable', lot_number: lotNumber }, { status: 404 })
+  if (!fl) return NextResponse.json({ error: 'Lot introuvable', lot: lotNumber }, { status: 404 })
 
-  // Query 2: parent lot (optional — won't block if missing)
   const { data: lot } = await db
-    .from('lots')
-    .select('variety, producer_code, parcel, harvest_date')
-    .eq('id', fl.parent_lot_id)
-    .maybeSingle()
+    .from('lots').select('variety, producer_code, parcel, harvest_date')
+    .eq('id', fl.parent_lot_id).maybeSingle()
 
   const origin = request.nextUrl.origin
   const traceUrl = `${origin}/t/${encodeURIComponent(lotNumber)}`
   const qrUrl = `https://chart.googleapis.com/chart?chs=240x240&cht=qr&chl=${encodeURIComponent(traceUrl)}&choe=UTF-8&chld=H|1`
   const logoUrl = `${origin}/sol-logo.png`
 
-  const variety = lot?.variety ? VARIETIES[lot.variety] || lot.variety : ''
-  const parcel = lot?.parcel ? `Parcelle ${lot.parcel} — Crenier` : ''
-  const productName = PRODUCTS[fl.product_type] || fl.product_name
+  const variety  = lot?.variety ? VARIETIES[lot.variety] || lot.variety : ''
+  const parcel   = lot?.parcel ? `Parcelle ${lot.parcel} — Crenier` : ''
+  const product  = PRODUCTS[fl.product_type] || fl.product_name
 
-  // Label: 100mm × 60mm
-  // QR left: 45mm | Info right: 55mm
-  // All text sized to guarantee readability, tested before deploy
+  // Data rows — only include non-empty
+  const rows: [string, string][] = [
+    ['Variété',    variety],
+    ['Parcelle',   parcel],
+    ['Récolte',    lot?.harvest_date ? fmtDate(lot.harvest_date) : ''],
+    ['Origine',    'France'],
+    ['Label',      'Agriculture Biologique (FR-BIO-10)'],
+    ['N° de lot',  lotNumber],
+    ['DDM',        fmtDate(fl.ddm)],
+    ['Format',     fl.format],
+  ].filter(([,v]) => v) as [string, string][]
+
   const html = `<!DOCTYPE html>
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
 <title>Étiquette ${lotNumber}</title>
 <style>
+/* ── PRINT: 100mm × 60mm ── */
 @page { size: 100mm 60mm; margin: 0; }
-/* Label verified: all text fits, no overflow (tested 2026-06-04) */
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
   font-family: Arial, Helvetica, sans-serif;
@@ -73,127 +74,106 @@ body {
   background: #fff;
 }
 
+/* ── 3-zone layout ── */
 .label {
   width: 100mm; height: 60mm;
-  display: flex;
-  border: 0.8px solid #000;
+  display: grid;
+  grid-template-rows: 8mm 1fr 14mm;
+  border: 0.7px solid #000;
+  overflow: hidden;
 }
 
-/* ── QR SIDE (45mm) ── */
-.qr-side {
-  width: 45mm;
-  flex-shrink: 0;
+/* ── ZONE 1: HEADER (full width) ── */
+.header {
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 2mm;
-  border-right: 0.5px solid #ccc;
-  gap: 1mm;
+  border-bottom: 0.4px solid #ccc;
+  padding: 0 3mm;
 }
-.qr-side img {
-  width: 39mm; height: 39mm;
-  display: block;
-}
-.qr-hint {
-  font-size: 5.5pt;
-  color: #888;
-  text-align: center;
-  line-height: 1.4;
-}
-
-/* ── INFO SIDE (55mm) ── */
-.info-side {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  padding: 2mm 2mm 1.5mm 2mm;
-  overflow: hidden;
-}
-
-.logo img {
-  height: 8mm; width: auto;
-  max-width: 50mm;
-  display: block;
-}
-
-.hr { height: 0.4px; background: #ccc; margin: 1.5mm 0; }
-.hr-bold { height: 0.7px; background: #000; margin: 1.2mm 0; }
-
-.product {
-  font-size: 9.5pt;
+.header h1 {
+  font-size: 10pt;
   font-weight: 900;
   color: #000;
-  line-height: 1.2;
-  white-space: nowrap;
+  text-align: center;
+  letter-spacing: 0.02em;
+}
+
+/* ── ZONE 2: MIDDLE (QR | data) ── */
+.middle {
+  display: grid;
+  grid-template-columns: 42mm 1fr;
+  overflow: hidden;
+}
+
+.qr-zone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1mm;
+  border-right: 0.4px solid #ccc;
+}
+.qr-zone img { width: 38mm; height: 38mm; display: block; }
+
+.data-zone {
+  padding: 1.5mm 2mm 1mm 2mm;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0;
+  overflow: hidden;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 17mm 1fr;
+  font-size: 6.5pt;
+  line-height: 1.6;
+  overflow: hidden;
+}
+.row .k { color: #888; }
+.row .v {
+  color: #000;
+  font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-.product-sub {
-  font-size: 7pt;
-  color: #444;
-  margin-top: 0.5mm;
-}
-.badge {
-  display: inline-block;
-  background: #000; color: #fff;
-  font-size: 7.5pt; font-weight: 700;
-  padding: 0.7mm 2mm;
-  border-radius: 2px;
-  margin-top: 1mm;
-}
-
-.details { margin-top: 1.2mm; }
-.dl {
-  display: flex;
-  gap: 1mm;
-  font-size: 7pt;
-  line-height: 1.7;
-  overflow: hidden;
-}
-.dl .k { color: #888; flex-shrink: 0; }
-.dl .v { color: #000; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-.lot-num {
-  font-family: 'Courier New', Courier, monospace;
-  font-size: 7.5pt;
-  font-weight: 700;
-  border: 0.8px solid #000;
-  padding: 0.8mm 1.5mm;
-  display: inline-block;
-  letter-spacing: 0.03em;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.ddm-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  margin-top: 1.2mm;
-}
-.ddm { font-size: 9pt; font-weight: 900; color: #000; }
-.bio { font-size: 6pt; color: #555; }
-
+/* ── ZONE 3: FOOTER ── */
 .footer {
-  margin-top: auto;
-  padding-top: 1mm;
-  border-top: 0.3px solid #ddd;
-  font-size: 5pt;
-  color: #999;
-  line-height: 1.4;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2mm;
+  border-top: 0.4px solid #ccc;
   overflow: hidden;
+}
+
+.hanoa-info {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0;
+}
+.hanoa-info span {
+  font-size: 6pt;
+  color: #888;
+  line-height: 1.35;
   white-space: nowrap;
-  text-overflow: ellipsis;
+}
+
+.sol-logo {
+  height: 11mm;
+  width: auto;
+  display: block;
+  flex-shrink: 0;
 }
 
 /* ── SCREEN PREVIEW (3× scale) ── */
 @media screen {
-  html { background: #e8e4dc; min-height: 100vh; display: flex; align-items: flex-start; justify-content: center; padding: 20px; }
-  body { transform: scale(3.2); transform-origin: top center; margin: 110px 0 380px 0; box-shadow: 0 4px 24px rgba(0,0,0,0.25); }
+  html { background: #e8e4dc; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+  body { transform: scale(3.2); transform-origin: top center; margin: 100px 0 380px 0; box-shadow: 0 4px 20px rgba(0,0,0,0.25); }
   .controls { position: fixed; top: 16px; right: 16px; display: flex; gap: 8px; z-index: 999; }
   .btn { padding: 10px 18px; border-radius: 8px; font-size: 14px; cursor: pointer; font-family: Arial; font-weight: 600; border: none; }
   .btn-print { background: #0f6e56; color: #fff; }
@@ -205,53 +185,45 @@ body {
 <body>
 
 <div class="controls">
-  <button class="btn btn-trace" onclick="window.open('${traceUrl}','_blank')">🔗 Page traçabilité</button>
+  <button class="btn btn-trace" onclick="window.open('${traceUrl}','_blank')">🔗 Traçabilité</button>
   <button class="btn btn-print" onclick="window.print()">🖨️ Imprimer (Zebra)</button>
 </div>
 
 <div class="label">
 
-  <div class="qr-side">
-    <img src="${qrUrl}" alt="QR" />
-    <div class="qr-hint">Scanner pour la<br>traçabilité complète</div>
+  <!-- ZONE 1: TITRE -->
+  <div class="header">
+    <h1>${product}</h1>
   </div>
 
-  <div class="info-side">
-
-    <div class="logo">
-      <img src="${logoUrl}" alt="SOL"
-        onerror="this.outerHTML='<span style=&quot;font-size:13pt;font-weight:900;letter-spacing:0.1em&quot;>SOL</span>'" />
+  <!-- ZONE 2: QR + DONNÉES -->
+  <div class="middle">
+    <div class="qr-zone">
+      <img src="${qrUrl}" alt="QR traçabilité" />
     </div>
-
-    <div class="hr"></div>
-
-    <div class="product">${productName}</div>
-    <div class="product-sub">d'origine française · Agriculture Biologique</div>
-    <span class="badge">${fl.format}</span>
-
-    <div class="details">
-      ${variety ? `<div class="dl"><span class="k">Variété</span><span class="v">${variety}</span></div>` : ''}
-      ${parcel ? `<div class="dl"><span class="k">Parcelle</span><span class="v">${parcel}</span></div>` : ''}
-      ${lot?.harvest_date ? `<div class="dl"><span class="k">Récolte</span><span class="v">${fmtDate(lot.harvest_date)}</span></div>` : ''}
+    <div class="data-zone">
+      ${rows.map(([k, v]) => `
+      <div class="row">
+        <span class="k">${k} :</span>
+        <span class="v">${v}</span>
+      </div>`).join('')}
     </div>
-
-    <div class="hr-bold"></div>
-
-    <span class="lot-num">${lotNumber}</span>
-
-    <div class="ddm-row">
-      <span class="ddm">DDM ${fmtDate(fl.ddm)}</span>
-      <span class="bio">FR-BIO-10 ✓</span>
-    </div>
-
-    <div class="footer">
-      SAS HANOA &nbsp;·&nbsp; SIREN 939 694 139<br>
-      1 Le Perrat &nbsp;·&nbsp; 45600 Lion-en-Sullias
-    </div>
-
   </div>
+
+  <!-- ZONE 3: FOOTER -->
+  <div class="footer">
+    <div class="hanoa-info">
+      <span>SAS HANOA</span>
+      <span>SIREN : 939 694 139</span>
+      <span>1 Le Perrat</span>
+      <span>45600</span>
+      <span>Lion-en-Sullias</span>
+    </div>
+    <img class="sol-logo" src="${logoUrl}" alt="SOL"
+      onerror="this.style.display='none'" />
+  </div>
+
 </div>
-
 </body>
 </html>`
 
