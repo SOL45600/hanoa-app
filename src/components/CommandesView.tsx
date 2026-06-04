@@ -218,11 +218,19 @@ function NewOrderForm({ sectionId, userId, supabase, onCreated, onCancel }: {
   onCreated: (order: Order) => void; onCancel: () => void
 }) {
   const [form, setForm] = useState({
-    order_number: '', client: '', destination: '', carrier: 'GLS',
+    order_number: '', client: '', destination: '', carrier: 'GEODIS',
     ship_date: '', tracking_number: '', lot_number: '', notes: '',
   })
   const [lines, setLines] = useState<OrderLine[]>([emptyLine()])
+  const [lineFinishedLots, setLineFinishedLots] = useState<Record<number, string>>({})
+  const [availableLots, setAvailableLots] = useState<{id: string; lot_number: string; product_type: string; format: string; units_remaining: number}[]>([])
   const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    supabase.from('finished_lots').select('id, lot_number, product_type, format, units_remaining')
+      .gt('units_remaining', 0).order('production_date', { ascending: false })
+      .then(({ data }) => setAvailableLots(data || []))
+  }, [])
 
   const setField = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }))
   const setLine = (i: number, k: keyof OrderLine, v: string) =>
@@ -242,10 +250,15 @@ function NewOrderForm({ sectionId, userId, supabase, onCreated, onCancel }: {
 
     if (error || !order) { setSaving(false); return }
 
-    // Insert lines
+    // Insert lines with optional finished_lot_id
     if (lines.some(l => l.product)) {
       await supabase.from('order_lines').insert(
-        lines.filter(l => l.product).map((l, i) => ({ ...l, order_id: order.id, sort_order: i }))
+        lines.filter(l => l.product).map((l, i) => ({
+          ...l,
+          order_id: order.id,
+          sort_order: i,
+          finished_lot_id: lineFinishedLots[i] || null,
+        }))
       )
     }
 
@@ -306,6 +319,24 @@ function NewOrderForm({ sectionId, userId, supabase, onCreated, onCancel }: {
             </select>
             <input value={line.packaging} onChange={e => setLine(i, 'packaging', e.target.value)} placeholder="Conditionnement" className={styles.lineInput} />
             <input value={line.lot_number} onChange={e => setLine(i, 'lot_number', e.target.value)} placeholder="N° lot" className={styles.lineInput} />
+            {/* Stock lot selector */}
+            {availableLots.length > 0 && (
+              <select className={styles.lineSelect}
+                value={lineFinishedLots[i] || ''}
+                onChange={e => {
+                  const fl = availableLots.find(l => l.id === e.target.value)
+                  setLineFinishedLots(prev => ({ ...prev, [i]: e.target.value }))
+                  if (fl) setLine(i, 'lot_number', fl.lot_number)
+                }}
+                title="Lier au stock">
+                <option value="">Stock (optionnel)</option>
+                {availableLots.map(l => (
+                  <option key={l.id} value={l.id}>
+                    {l.lot_number} · {l.format} · {l.units_remaining}u
+                  </option>
+                ))}
+              </select>
+            )}
             {lines.length > 1 && (
               <button type="button" onClick={() => removeLine(i)} className={styles.removeLine}>✕</button>
             )}
@@ -474,6 +505,31 @@ export default function CommandesView({ sectionId, userId, profile, supabase }: 
 
   const handleStatusChange = async (orderId: string, newStatus: string) => {
     await supabase.from('orders').update({ status: newStatus }).eq('id', orderId)
+
+    // Level 2: When order is shipped, decrement stock for linked lots
+    if (newStatus === 'envoye') {
+      const { data: lines } = await supabase
+        .from('order_lines')
+        .select('finished_lot_id, quantity')
+        .eq('order_id', orderId)
+        .not('finished_lot_id', 'is', null)
+
+      for (const line of (lines || [])) {
+        if (!line.finished_lot_id) continue
+        const qty = parseInt(line.quantity) || 0
+        if (qty <= 0) continue
+        const { data: fl } = await supabase
+          .from('finished_lots')
+          .select('units_remaining')
+          .eq('id', line.finished_lot_id)
+          .single()
+        if (fl) {
+          const newRemaining = Math.max(0, fl.units_remaining - qty)
+          await supabase.from('finished_lots').update({ units_remaining: newRemaining }).eq('id', line.finished_lot_id)
+        }
+      }
+    }
+
     setOrders(os => os.map(o => o.id === orderId ? { ...o, status: newStatus } : o))
   }
 

@@ -15,6 +15,7 @@ import CommandesView from './CommandesView'
 import CalendarView from './CalendarView'
 import FinanceView from './FinanceView'
 import LotsView from './lots/LotsView'
+import StockView from './lots/StockView'
 import Modal from './Modal'
 import styles from './AppShell.module.css'
 
@@ -204,6 +205,9 @@ export default function AppShell({ user, profile, initialSections }: Props) {
           {!showUsers && selected && selected.label.toLowerCase() === 'lots' && (
             <LotsView supabase={supabase} userId={user.id} profile={profile} />
           )}
+          {!showUsers && selected && selected.label.toLowerCase() === 'stock' && (
+            <StockView supabase={supabase} />
+          )}
           {!showUsers && selected && selected.label.toLowerCase().includes('irrigation') && <WeenatView />}
           {!showUsers && selected && selected.label.toLowerCase() === 'commandes' && (
             <CommandesView sectionId={selected.id} userId={user.id} profile={profile} supabase={supabase} />
@@ -212,6 +216,7 @@ export default function AppShell({ user, profile, initialSections }: Props) {
             selected.label.toLowerCase() !== 'planning' &&
             selected.label.toLowerCase() !== 'finance' &&
             selected.label.toLowerCase() !== 'lots' &&
+            selected.label.toLowerCase() !== 'stock' &&
             !selected.label.toLowerCase().includes('irrigation') &&
             selected.label.toLowerCase() !== 'commandes' &&
             view === 'feed' && (
@@ -221,6 +226,7 @@ export default function AppShell({ user, profile, initialSections }: Props) {
             selected.label.toLowerCase() !== 'planning' &&
             selected.label.toLowerCase() !== 'finance' &&
             selected.label.toLowerCase() !== 'lots' &&
+            selected.label.toLowerCase() !== 'stock' &&
             !selected.label.toLowerCase().includes('irrigation') &&
             selected.label.toLowerCase() !== 'commandes' &&
             view === 'docs' && (

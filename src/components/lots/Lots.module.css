@@ -117,6 +117,34 @@
 .productCode { display: block; font-size: 18px; font-weight: 700; color: var(--green); margin-bottom: 2px; }
 .productTypeBtnActive .productCode { color: var(--green); }
 
+/* ── TABS ──────────────────────────────────────── */
+.tabs { display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 0.5px solid var(--border); }
+.tabOn { padding: 8px 16px; font-size: 13px; font-weight: 500; color: var(--green); border-bottom: 2px solid var(--green); margin-bottom: -1px; display: flex; align-items: center; gap: 5px; }
+.tabOff { padding: 8px 16px; font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 5px; }
+.tabOff:hover { color: var(--text); }
+
+/* ── STOCK VIEW ─────────────────────────────────── */
+.stockGroup { margin-bottom: 20px; background: white; border: 0.5px solid var(--border); border-radius: 12px; overflow: hidden; }
+.stockGroupHeader { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 0.5px solid var(--border); background: var(--bg); }
+.stockGroupIcon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.stockGroupTitle { font-size: 14px; font-weight: 500; display: block; }
+.stockGroupTotal { font-size: 12px; color: var(--muted); }
+.stockTable, .movementsTable { overflow-x: auto; }
+.stockTableHead { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr 80px; gap: 0; padding: 8px 16px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: #888; background: var(--bg); font-family: sans-serif; border-bottom: 0.5px solid var(--border); }
+.stockRow { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr 80px; gap: 0; padding: 10px 16px; font-size: 13px; border-bottom: 0.5px solid var(--border); align-items: center; }
+.stockRow:last-child { border-bottom: none; }
+.stockRowEmpty { opacity: 0.5; }
+.stockLotNum { font-family: monospace; font-size: 12px; font-weight: 600; }
+.stockRemaining { font-weight: 700; font-size: 15px; }
+.adjustForm { display: flex; gap: 4px; align-items: center; }
+.adjustForm input { width: 50px; padding: 4px 6px; border: 0.5px solid var(--border-mid); border-radius: 6px; font-size: 12px; text-align: center; }
+.adjustSave { background: var(--green); color: white; border-radius: 5px; padding: 3px 7px; font-size: 12px; }
+.adjustCancel { color: var(--muted); border-radius: 5px; padding: 3px 7px; font-size: 12px; }
+.adjustBtn { color: var(--muted); padding: 3px 6px; border-radius: 5px; font-size: 12px; }
+.adjustBtn:hover { background: var(--bg); color: var(--green); }
+.movementsTable .stockTableHead { grid-template-columns: 2fr 2fr 1fr 1fr 1.5fr 1.5fr 1fr; }
+.movementsTable .stockRow { grid-template-columns: 2fr 2fr 1fr 1fr 1.5fr 1.5fr 1fr; }
+
 /* ── STATS BAR ─────────────────────────────────── */
 .statsBar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; padding: 14px 16px; background: white; border: 0.5px solid var(--border); border-radius: 12px; }
 .statItem { display: flex; flex-direction: column; gap: 2px; padding: 0 12px; border-right: 0.5px solid var(--border); }
