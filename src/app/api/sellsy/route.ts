@@ -41,20 +41,25 @@ export async function GET(request: NextRequest) {
     const thisMonth = new Date().toISOString().slice(0, 7)
     const fiscalStart = `${thisYear}-01-01` // Exercice fiscal depuis 01/01/2026
 
-    // Paginate through all invoices — fetch up to 500 to cover fiscal year
+    // Cursor-based pagination (Sellsy v2 uses cursor, not numeric offset)
     let allInvoices: any[] = []
-    let offset = 0
+    let cursor: string | null = null
     const pageSize = 100
     for (let p = 0; p < 5; p++) {
-      const page = await sellsyFetch(`/invoices?limit=${pageSize}&offset=${offset}&embed[]=amounts`)
+      const url = cursor
+        ? `/invoices?limit=${pageSize}&order[date]=desc&offset=${encodeURIComponent(cursor)}`
+        : `/invoices?limit=${pageSize}&order[date]=desc`
+      const page = await sellsyFetch(url)
       const items: any[] = page.data || []
       if (!items.length) break
       allInvoices = allInvoices.concat(items)
       if (items.length < pageSize) break
-      // Stop if we've gone past the fiscal year
+      // Stop if oldest invoice is before fiscal year start
       const oldest = items[items.length - 1]?.date || ''
       if (oldest && oldest < fiscalStart) break
-      offset += pageSize
+      // Get next cursor from pagination
+      cursor = page.pagination?.offset || null
+      if (!cursor) break
     }
 
     const [companiesData] = await Promise.all([
