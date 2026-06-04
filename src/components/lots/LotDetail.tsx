@@ -483,7 +483,14 @@ export default function LotDetail({ lot, supabase, userId, profile, onBack, onRe
                     {fl.ddm && ` · DDM : ${fmtDate(fl.ddm)}`}
                   </div>
                 </div>
-                <QRCodeDisplay lotNumber={fl.lot_number} size={80} />
+                <div className={styles.flActions}>
+                  <QRCodeDisplay lotNumber={fl.lot_number} size={72} />
+                  <a href={`/api/export/lot-label?lot=${encodeURIComponent(fl.lot_number)}`}
+                     target="_blank" className={styles.labelBtn}>
+                    <i className="ti ti-printer" style={{ fontSize: 12 }} />
+                    Étiquette
+                  </a>
+                </div>
                 <button className={styles.flDelete} title="Supprimer"
                   onClick={async () => {
                     if (!confirm(`Supprimer "${fl.lot_number}" ?`)) return
