@@ -136,6 +136,25 @@ function OrderCard({ order, onStatusChange, onUpload, onPreview, onDownload, use
 
       {order.lines && order.lines.length > 0 && <LinesDisplay lines={order.lines} />}
 
+      {/* Étiquettes lots liés */}
+      {(() => {
+        const lotsWithLabel = (order.lines || []).filter((l: any) => l.finished_lots?.lot_number)
+        if (lotsWithLabel.length === 0) return null
+        return (
+          <div className={styles.lotLabels}>
+            {lotsWithLabel.map((l: any) => (
+              <a key={l.id}
+                href={`/api/export/lot-label?lot=${encodeURIComponent(l.finished_lots.lot_number)}`}
+                target="_blank"
+                className={styles.lotLabelBtn}>
+                <i className="ti ti-tag" style={{ fontSize: 12 }} />
+                Étiquette {l.finished_lots.lot_number}
+              </a>
+            ))}
+          </div>
+        )
+      })()}
+
       {/* Documents */}
       <div className={styles.docs}>
         {DOC_TYPES.map(dt => {
@@ -523,7 +542,7 @@ export default function CommandesView({ sectionId, userId, profile, supabase }: 
     if (!ordersData) { setLoading(false); return }
 
     const [{ data: linesData }, { data: attData }] = await Promise.all([
-      supabase.from('order_lines').select('*').in('order_id', ordersData.map(o => o.id)).order('sort_order'),
+      supabase.from('order_lines').select('*, finished_lots(lot_number)').in('order_id', ordersData.map(o => o.id)).order('sort_order'),
       supabase.from('order_attachments').select('*').in('order_id', ordersData.map(o => o.id)),
     ])
 
