@@ -377,6 +377,9 @@ function OrderTable({ orders, onStatusChange }: {
         <button className={styles.exportBtn} onClick={exportCsv}>
           <i className="ti ti-download" /> CSV
         </button>
+        <a href="/api/export/commandes" download className={styles.exportBtn} style={{ textDecoration: 'none', color: '#0f6e56', background: '#e1f5ee', borderColor: '#0f6e5644' }}>
+          <i className="ti ti-file-spreadsheet" /> Excel livrées
+        </a>
       </div>
 
       <div className={styles.tableWrap}>

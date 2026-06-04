@@ -7,9 +7,24 @@
   gap: 10px;
   height: 52px;
   flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 50;
   /* iOS PWA: avoid status bar overlap */
   padding-top: env(safe-area-inset-top);
   height: calc(52px + env(safe-area-inset-top));
+  /* Force solid background — no bleed from photo/wallpaper */
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+@supports (padding-top: env(safe-area-inset-top)) {
+  .bar {
+    background: white;
+    color: var(--text);
+  }
+  .bar h2 { color: var(--text) !important; }
+  .bar button, .bar i { color: var(--muted) !important; }
 }
 
 .menuBtn {
