@@ -19,16 +19,16 @@ export const STAGES: Record<string, { label: string; icon: string; color: string
   sechage:       { label: 'Séchage',       icon: 'ti-sun',            color: '#ba7517', fields: ['date', 'humidity_out', 'quality_score', 'notes'] },
   calibrage:     { label: 'Calibrage',     icon: 'ti-adjustments',    color: '#0f6e56', fields: ['date', 'calibration', 'notes'] },
   cassage:       { label: 'Cassage',       icon: 'ti-tool',           color: '#6b4fbb', fields: ['date', 'weight_in', 'weight_out', 'notes'] },
-  torreflaction: { label: 'Torréfaction',  icon: 'ti-flame',          color: '#d85a30', fields: ['date', 'weight_in', 'weight_out', 'temperature_c', 'notes'] },
-  presse:        { label: 'Presse',        icon: 'ti-compress',       color: '#888',    fields: ['date', 'weight_in', 'weight_out', 'notes'] },
+  torreflaction: { label: 'Torréfaction',  icon: 'ti-flame',          color: '#d85a30', fields: ['date', 'weight_in', 'weight_out', 'temperature_c', 'duration_min', 'notes'] },
+  presse:        { label: 'Presse',        icon: 'ti-droplet',        color: '#C9A227', fields: ['date', 'weight_in', 'volume_out_l', 'weight_out', 'notes'] },
   broyage:       { label: 'Broyage',       icon: 'ti-grain',          color: '#888',    fields: ['date', 'weight_in', 'weight_out', 'notes'] },
 }
 
-export const PRODUCT_TYPES: Record<string, { label: string; code: string; formats: string[] }> = {
-  D: { label: 'Noisettes décortiquées BIO', code: 'D', formats: ['250g', '5kg', '10kg'] },
-  T: { label: 'Noisettes torréfiées BIO',   code: 'T', formats: ['250g', '5kg', '10kg'] },
-  P: { label: 'Poudre de noisettes BIO',    code: 'P', formats: ['250g', '5kg', '10kg'] },
-  H: { label: 'Huile de noisettes BIO',     code: 'H', formats: ['25cl', '3L', '5L'] },
+export const PRODUCT_TYPES: Record<string, { label: string; code: string; formats: string[]; icon: string; color: string }> = {
+  D: { label: 'Noisettes décortiquées BIO', code: 'D', formats: ['250g', '5kg', '10kg'], icon: 'ti-nut',     color: '#6b4fbb' },
+  T: { label: 'Noisettes torréfiées BIO',   code: 'T', formats: ['250g', '5kg', '10kg'], icon: 'ti-flame',   color: '#d85a30' },
+  P: { label: 'Poudre de noisettes BIO',    code: 'P', formats: ['250g', '5kg', '10kg'], icon: 'ti-grain',   color: '#888' },
+  H: { label: 'Huile de noisettes BIO',     code: 'H', formats: ['25cl', '3L', '5L'],    icon: 'ti-droplet', color: '#C9A227' },
 }
 
 export const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; next?: string }> = {

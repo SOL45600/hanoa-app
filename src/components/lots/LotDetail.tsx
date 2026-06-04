@@ -30,7 +30,9 @@ function StageFormModal({ stageType, existingStage, lot, supabase, userId, profi
     operator: existingStage?.operator || profile.full_name,
     weight_in_kg: existingStage?.weight_in_kg?.toString() || '',
     weight_out_kg: existingStage?.weight_out_kg?.toString() || '',
+    volume_out_l: (existingStage as any)?.volume_out_l?.toString() || '',
     temperature_c: existingStage?.temperature_c?.toString() || '',
+    duration_min: existingStage?.duration_min?.toString() || '',
     humidity_pct_out: existingStage?.humidity_pct_out?.toString() || '',
     quality_score: existingStage?.quality_score?.toString() || '',
     notes: existingStage?.notes || '',
@@ -59,7 +61,9 @@ function StageFormModal({ stageType, existingStage, lot, supabase, userId, profi
     }
     if (form.weight_in_kg) data.weight_in_kg = parseFloat(form.weight_in_kg)
     if (form.weight_out_kg) data.weight_out_kg = parseFloat(form.weight_out_kg)
+    if (form.volume_out_l) data.volume_out_l = parseFloat(form.volume_out_l)
     if (form.temperature_c) data.temperature_c = parseFloat(form.temperature_c)
+    if (form.duration_min) data.duration_min = parseInt(form.duration_min)
     if (form.humidity_pct_out) data.humidity_pct_out = parseFloat(form.humidity_pct_out)
     if (form.quality_score) data.quality_score = parseInt(form.quality_score)
 
@@ -171,11 +175,24 @@ function StageFormModal({ stageType, existingStage, lot, supabase, userId, profi
               </div>
             </>)}
 
-            {stageType === 'torreflaction' && (
+            {stageType === 'torreflaction' && (<>
               <div className={styles.field}>
                 <label>Température (°C)</label>
                 <input type="number" value={form.temperature_c}
                   onChange={e => set('temperature_c', e.target.value)} placeholder="Ex: 140" />
+              </div>
+              <div className={styles.field}>
+                <label>Durée de torréfaction (min)</label>
+                <input type="number" value={form.duration_min}
+                  onChange={e => set('duration_min', e.target.value)} placeholder="Ex: 22" />
+              </div>
+            </>)}
+
+            {stageType === 'presse' && (
+              <div className={styles.field}>
+                <label><i className="ti ti-droplet" style={{ color: '#C9A227' }} /> Huile produite (litres)</label>
+                <input type="number" step="0.1" value={form.volume_out_l}
+                  onChange={e => set('volume_out_l', e.target.value)} placeholder="Ex: 18.5" />
               </div>
             )}
 
@@ -406,7 +423,9 @@ export default function LotDetail({ lot, supabase, userId, profile, onBack, onRe
                         {stage!.weight_in_kg && stage!.weight_out_kg && (
                           <span>· Rdt : {((stage!.weight_out_kg / stage!.weight_in_kg) * 100).toFixed(0)}%</span>
                         )}
+                        {(stage as any)?.volume_out_l && <span>· <i className="ti ti-droplet" style={{ color: '#C9A227' }} /> {(stage as any).volume_out_l} L huile</span>}
                         {stage!.temperature_c && <span>· {stage!.temperature_c}°C</span>}
+                        {stage!.duration_min && <span>· {stage!.duration_min} min</span>}
                       </div>
                     ) : (
                       <div className={styles.wsPending}>Optionnel — cliquer si applicable</div>
@@ -444,20 +463,36 @@ export default function LotDetail({ lot, supabase, userId, profile, onBack, onRe
       {/* Finished products */}
       {(lot.finished_lots || []).length > 0 && (
         <div className={styles.section}>
-          <p className={styles.sectionLabel}>Produits finis conditionnés</p>
-          {(lot.finished_lots || []).map((fl: FinishedLot) => (
-            <div key={fl.id} className={styles.finishedLotCard}>
-              <div className={styles.flCode}>{fl.product_type}</div>
-              <div className={styles.flInfo}>
-                <div className={styles.flName}>{fl.lot_number}</div>
-                <div className={styles.flMeta}>
-                  {fl.product_name} · {fl.format} · {fl.units_produced} unité{fl.units_produced > 1 ? 's' : ''}
-                  {fl.total_weight_kg && ` · ${fl.total_weight_kg} kg`}
-                  {fl.ddm && ` · DDM : ${fmtDate(fl.ddm)}`}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+            <p className={styles.sectionLabel} style={{ margin: 0 }}>Produits finis conditionnés</p>
+            <span className={styles.stockBadge}>✓ En stock</span>
+          </div>
+          {(lot.finished_lots || []).map((fl: FinishedLot) => {
+            const pt = PRODUCT_TYPES[fl.product_type]
+            return (
+              <div key={fl.id} className={styles.finishedLotCard}>
+                <div className={styles.flCode} style={{ background: (pt?.color || '#888') + '22', border: `1.5px solid ${pt?.color || '#888'}44` }}>
+                  <i className={`ti ${pt?.icon || 'ti-package'}`} style={{ color: pt?.color || '#888', fontSize: 18 }} />
                 </div>
+                <div className={styles.flInfo}>
+                  <div className={styles.flName}>{fl.lot_number}</div>
+                  <div className={styles.flMeta}>
+                    {fl.product_name} · {fl.format} · {fl.units_produced} unité{fl.units_produced > 1 ? 's' : ''}
+                    {fl.total_weight_kg && ` · ${fl.total_weight_kg} kg`}
+                    {fl.ddm && ` · DDM : ${fmtDate(fl.ddm)}`}
+                  </div>
+                </div>
+                <button className={styles.flDelete} title="Supprimer"
+                  onClick={async () => {
+                    if (!confirm(`Supprimer "${fl.lot_number}" ?`)) return
+                    await supabase.from('finished_lots').delete().eq('id', fl.id)
+                    onRefresh()
+                  }}>
+                  <i className="ti ti-trash" style={{ fontSize: 14 }} />
+                </button>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
 

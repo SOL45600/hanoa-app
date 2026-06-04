@@ -117,6 +117,20 @@
 .productCode { display: block; font-size: 18px; font-weight: 700; color: var(--green); margin-bottom: 2px; }
 .productTypeBtnActive .productCode { color: var(--green); }
 
+/* ── STATS BAR ─────────────────────────────────── */
+.statsBar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; padding: 14px 16px; background: white; border: 0.5px solid var(--border); border-radius: 12px; }
+.statItem { display: flex; flex-direction: column; gap: 2px; padding: 0 12px; border-right: 0.5px solid var(--border); }
+.statItem:first-child { padding-left: 0; }
+.statItem:last-child { border-right: none; }
+.statValue { font-size: 20px; font-weight: 700; line-height: 1; }
+.statLabel { font-size: 11px; color: var(--muted); }
+.statLabel em { font-style: normal; color: var(--green); font-weight: 500; }
+
+/* ── STOCK / FINISHED ──────────────────────────── */
+.stockBadge { font-size: 11px; font-weight: 600; background: #e8f5ee; color: #0f6e56; border-radius: 5px; padding: 2px 8px; }
+.flDelete { color: #d3d1c7; padding: 4px 6px; border-radius: 5px; flex-shrink: 0; transition: all 0.12s; }
+.flDelete:hover { color: #d85a30; background: #faece7; }
+
 /* ── WORKFLOW ──────────────────────────────────── */
 .workflow { display: flex; flex-direction: column; gap: 16px; }
 .workflowPhase { background: var(--bg); border-radius: 12px; padding: 14px; }
