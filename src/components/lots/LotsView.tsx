@@ -120,9 +120,14 @@ export default function LotsView({ supabase, userId, profile }: Props) {
           <h2>Suivi des lots — Noisettes</h2>
           <p>{lots.length} lot{lots.length > 1 ? 's' : ''} enregistré{lots.length > 1 ? 's' : ''}</p>
         </div>
-        <button className={styles.newBtn} onClick={() => setShowNew(true)}>
-          <i className="ti ti-plus" /> Nouveau lot
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <a href="/api/export/bio-register" target="_blank" className={styles.exportLinkBtn}>
+            <i className="ti ti-certificate" /> Registre BIO
+          </a>
+          <button className={styles.newBtn} onClick={() => setShowNew(true)}>
+            <i className="ti ti-plus" /> Nouveau lot
+          </button>
+        </div>
       </div>
 
       {showNew && (

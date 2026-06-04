@@ -161,10 +161,48 @@ export async function GET(request: NextRequest) {
 
   await sendAlert(subject, html)
 
+  // Also check task reminders (tasks due tomorrow)
+  const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10)
+  const { data: dueTasks } = await supabase
+    .from('tasks')
+    .select('title, row_key, week_start, assigned_to, profiles(full_name)')
+    .eq('week_start', tomorrow)
+    .eq('status', 'a_faire')
+    .not('assigned_to', 'is', null)
+
+  if (dueTasks && dueTasks.length > 0 && RESEND_KEY) {
+    const taskHtml = dueTasks.map((t: any) => `
+      <li style="margin-bottom:6px">
+        <strong>${t.title}</strong> — ${t.row_key?.replace(/_/g, ' ') || ''}
+        ${t.profiles?.full_name ? ` (assigné à ${t.profiles.full_name})` : ''}
+      </li>`).join('')
+
+    await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${RESEND_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from: 'Projet SOL Planning <planning@s-o-l.fr>',
+        to: [ALERT_EMAIL],
+        subject: `📅 ${dueTasks.length} tâche(s) prévue(s) demain — Projet SOL`,
+        html: `
+          <div style="font-family:Georgia,serif;max-width:500px;margin:0 auto">
+            <h2 style="color:#0f6e56">📅 Rappel planning — demain</h2>
+            <p>${dueTasks.length} tâche(s) prévue(s) pour le <strong>${new Date(tomorrow).toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'})}</strong> :</p>
+            <ul style="margin:16px 0;padding-left:20px">${taskHtml}</ul>
+            <a href="https://hanoa-app.vercel.app" style="display:inline-block;padding:10px 20px;background:#0f6e56;color:white;border-radius:8px;text-decoration:none">
+              Voir le planning →
+            </a>
+          </div>
+        `,
+      }),
+    })
+  }
+
   return NextResponse.json({
     checked: TENSIOMETERS.length,
     alerts: newAlerts.length,
     severe: severeAlerts.length,
     warn: warnAlerts.length,
+    task_reminders: dueTasks?.length || 0,
   })
 }

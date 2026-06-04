@@ -1,8 +1,20 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { SupabaseClient } from '@supabase/supabase-js'
 import { Profile } from '@/lib/types'
 import styles from './CalendarView.module.css'
+
+// Weather icons from Weenat data
+const WEATHER_ICONS: Record<string, string> = {
+  sunny: '☀️', cloudy: '⛅', rainy: '🌧️', stormy: '⛈️', foggy: '🌫️',
+}
+
+interface WeatherData {
+  date: string
+  temp_max?: number
+  temp_min?: number
+  rainfall?: number
+}
 
 /* ─── CONFIG ─────────────────────────────────────────────────── */
 const PLANNING_ROWS = [
@@ -187,6 +199,7 @@ function TaskModal({ weekDate, rowKey, rowLabel, profiles, userId, onSave, onClo
 export default function CalendarView({ supabase, userId, profile, myOnly = false }: Props) {
   const [tasks, setTasks] = useState<Task[]>([])
   const [profiles, setProfiles] = useState<Profile[]>([])
+  const [weather, setWeather] = useState<Record<string, WeatherData>>({})
   const [startWeek, setStartWeek] = useState(() => getMondayOfWeek(new Date()))
   const [numWeeks] = useState(8)
   const [addingCell, setAddingCell] = useState<{ week: Date; rowKey: string; rowLabel: string } | null>(null)
@@ -195,10 +208,20 @@ export default function CalendarView({ supabase, userId, profile, myOnly = false
 
   useEffect(() => {
     supabase.from('tasks').select('*').then(({ data }) => setTasks(data || []))
-    // Load profiles directly from Supabase (no auth required)
     supabase.from('profiles').select('*').order('full_name').then(({ data }) => {
       if (data && data.length > 0) setProfiles(data)
     })
+    // Fetch weather from Weenat station
+    fetch('/api/weenat?type=device&id=76938&days=14&step=day')
+      .then(r => r.json())
+      .then(d => {
+        const wMap: Record<string, WeatherData> = {}
+        ;(d.data || []).forEach((item: any) => {
+          const dateKey = item.datetime?.slice(0, 10)
+          if (dateKey) wMap[dateKey] = { date: dateKey, temp_max: item.T, rainfall: item.RR }
+        })
+        setWeather(wMap)
+      }).catch(() => {})
   }, [])
 
   const weeks = Array.from({ length: numWeeks }, (_, i) => addWeeks(startWeek, i))
@@ -292,6 +315,17 @@ export default function CalendarView({ supabase, userId, profile, myOnly = false
                   <th key={weekKey(w)} className={`${styles.thWeek} ${isThisWeek(w) ? styles.thToday : ''}`}>
                     <div className={styles.weekNum}>{num}</div>
                     <div className={styles.weekRange}>{range}</div>
+                    {(() => {
+                      const dayKey = weekKey(w)
+                      const wd = weather[dayKey]
+                      if (!wd) return null
+                      return (
+                        <div className={styles.weekWeather}>
+                          {wd.temp_max != null && <span>🌡️{wd.temp_max.toFixed(0)}°</span>}
+                          {wd.rainfall != null && wd.rainfall > 0 && <span>🌧️{wd.rainfall.toFixed(0)}mm</span>}
+                        </div>
+                      )
+                    })()}
                   </th>
                 )
               })}

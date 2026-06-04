@@ -6,6 +6,7 @@ import {
   VARIETIES, PRODUCERS, STAGES, STATUS_CONFIG,
   CALIBERS, PRODUCT_TYPES, generateFinishedLotNumber, addDefaultDDM
 } from './config'
+import QRCodeDisplay from './QRCodeDisplay'
 import { Profile } from '@/lib/types'
 import styles from './Lots.module.css'
 
@@ -482,6 +483,7 @@ export default function LotDetail({ lot, supabase, userId, profile, onBack, onRe
                     {fl.ddm && ` · DDM : ${fmtDate(fl.ddm)}`}
                   </div>
                 </div>
+                <QRCodeDisplay lotNumber={fl.lot_number} size={80} />
                 <button className={styles.flDelete} title="Supprimer"
                   onClick={async () => {
                     if (!confirm(`Supprimer "${fl.lot_number}" ?`)) return
