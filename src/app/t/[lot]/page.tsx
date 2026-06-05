@@ -21,9 +21,11 @@ function fmtDate(d?: string) {
 }
 
 export default async function TraceabilityPage({ params }: { params: { lot: string } }) {
+  // Use the anon key (RLS disabled + GRANT ALL to anon) — the service-role key
+  // is unreliable in this deployment and returned null for existing lots.
   const admin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     { auth: { autoRefreshToken: false, persistSession: false } }
   )
 
