@@ -131,7 +131,7 @@ export default async function TraceabilityPage({ params }: { params: { lot: stri
           {/* Produit fini */}
           <div className="card">
             <h2>Produit fini</h2>
-            <div className="row"><label>Désignation</label><span>{PRODUCTS[fl.product_type] || fl.product_name}</span></div>
+            <div className="row"><label>Désignation</label><span>{fl.product_name || PRODUCTS[fl.product_type]}</span></div>
             <div className="row"><label>Format</label><span>{fl.format}</span></div>
             <div className="row"><label>Date de production</label><span>{fmtDate(fl.production_date)}</span></div>
             <div className="row"><label>Date de durabilité min.</label><span>{fmtDate(fl.ddm)}</span></div>
@@ -144,7 +144,7 @@ export default async function TraceabilityPage({ params }: { params: { lot: stri
               <h2>Origine</h2>
               <div className="row"><label>Producteur</label><span>{PRODUCERS[lot.producer_code] || lot.producer_code}</span></div>
               {lot.parcel && <div className="row"><label>Parcelle</label><span>{lot.parcel}</span></div>}
-              <div className="row"><label>Variété</label><span>{VARIETIES[lot.variety] || lot.variety}</span></div>
+              {lot.variety && <div className="row"><label>Variété</label><span>{VARIETIES[lot.variety] || lot.variety}</span></div>}
               <div className="row"><label>Date de récolte</label><span>{fmtDate(lot.harvest_date)}</span></div>
               {lot.humidity_pct && <div className="row"><label>Humidité réception</label><span>{lot.humidity_pct}%</span></div>}
             </div>

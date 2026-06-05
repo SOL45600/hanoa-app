@@ -49,7 +49,8 @@ export async function GET(request: NextRequest) {
 
   const variety  = lot?.variety ? VARIETIES[lot.variety] || lot.variety : ''
   const parcel   = lot?.parcel ? `Parcelle ${lot.parcel} — Crenier` : ''
-  const product  = PRODUCTS[fl.product_type] || fl.product_name
+  // Prefer the stored product_name (carries the fruit: noisette / amande / pécan)
+  const product  = fl.product_name || PRODUCTS[fl.product_type]
 
   // Data rows — only include non-empty
   const rows: [string, string][] = [
