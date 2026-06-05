@@ -102,13 +102,14 @@ function LinesDisplay({ lines }: { lines: OrderLine[] }) {
 }
 
 /* ─── ORDER CARD (À PRÉPARER) ────────────────────────────────── */
-function OrderCard({ order, onStatusChange, onUpload, onPreview, onDownload, onDelete, userId, supabase }: {
+function OrderCard({ order, onStatusChange, onUpload, onPreview, onDownload, onDelete, onEdit, userId, supabase }: {
   order: Order
   onStatusChange: (id: string, status: string) => void
   onUpload: (orderId: string, docType: string, file: File) => void
   onPreview: (att: OrderAttachment) => void
   onDelete: (id: string) => void
   onDownload: (path: string) => void
+  onEdit: (order: Order) => void
   userId: string
   supabase: SupabaseClient
 }) {
@@ -183,6 +184,13 @@ function OrderCard({ order, onStatusChange, onUpload, onPreview, onDownload, onD
       <div className={styles.cardHeader}>
         <span className={styles.orderNum}>#{order.order_number}</span>
         <StatusSelect status={order.status} onChange={s => onStatusChange(order.id, s)} />
+        <button
+          className={styles.deleteOrderBtn}
+          title="Modifier la commande"
+          onClick={() => onEdit(order)}
+          style={{ color: '#185fa5' }}>
+          <i className="ti ti-edit" style={{ fontSize: 14 }} />
+        </button>
         <button
           className={styles.deleteOrderBtn}
           title="Supprimer cette commande"
@@ -307,16 +315,30 @@ function OrderCard({ order, onStatusChange, onUpload, onPreview, onDownload, onD
 /* ─── NEW ORDER FORM ──────────────────────────────────────────── */
 const emptyLine = (): OrderLine => ({ product: 'Noisettes', variety: '', quantity: '', unit: 'kg', packaging: '', lot_number: '', sort_order: 0 })
 
-function NewOrderForm({ sectionId, userId, supabase, onCreated, onCancel }: {
+function NewOrderForm({ sectionId, userId, supabase, onCreated, onCancel, editOrder }: {
   sectionId: string; userId: string; supabase: SupabaseClient
-  onCreated: (order: Order) => void; onCancel: () => void
+  onCreated: (order: Order) => void; onCancel: () => void; editOrder?: Order
 }) {
+  const isEdit = !!editOrder
   const [form, setForm] = useState({
-    order_number: '', client: '', destination: '', carrier: 'GEODIS',
-    ship_date: '', tracking_number: '', lot_number: '', notes: '',
+    order_number: editOrder?.order_number || '', client: editOrder?.client || '',
+    destination: editOrder?.destination || '', carrier: editOrder?.carrier || 'GEODIS',
+    ship_date: editOrder?.ship_date || '', tracking_number: editOrder?.tracking_number || '',
+    lot_number: editOrder?.lot_number || '', notes: editOrder?.notes || '',
   })
-  const [lines, setLines] = useState<OrderLine[]>([emptyLine()])
-  const [lineFinishedLots, setLineFinishedLots] = useState<Record<number, string>>({})
+  const [lines, setLines] = useState<OrderLine[]>(
+    editOrder?.lines && editOrder.lines.length > 0
+      ? editOrder.lines.map((l, i) => ({
+          product: l.product || 'Noisettes', variety: l.variety || '', quantity: l.quantity || '',
+          unit: l.unit || 'kg', packaging: l.packaging || '', lot_number: l.lot_number || '', sort_order: i,
+        }))
+      : [emptyLine()]
+  )
+  const [lineFinishedLots, setLineFinishedLots] = useState<Record<number, string>>(() => {
+    const m: Record<number, string> = {}
+    ;(editOrder?.lines || []).forEach((l: any, i: number) => { if (l.finished_lot_id) m[i] = l.finished_lot_id })
+    return m
+  })
   const [availableLots, setAvailableLots] = useState<{
     id: string; lot_number: string; product_type: string; product_name: string
     format: string; units_remaining: number; variety?: string
@@ -345,32 +367,38 @@ function NewOrderForm({ sectionId, userId, supabase, onCreated, onCancel }: {
     if (!form.order_number || !form.client) return
     setSaving(true)
 
+    // Clean line payloads (no id / nested objects), with optional finished_lot_id
+    const cleanLines = lines.filter(l => l.product).map((l, i) => ({
+      product: l.product, variety: l.variety, quantity: l.quantity, unit: l.unit,
+      packaging: l.packaging, lot_number: l.lot_number, sort_order: i,
+      finished_lot_id: lineFinishedLots[i] || null,
+    }))
+
+    // ── Edit mode: update order + replace its lines (status preserved) ──
+    if (editOrder) {
+      const { error } = await supabase.from('orders').update({ ...form }).eq('id', editOrder.id)
+      if (error) { setSaving(false); return }
+      await supabase.from('order_lines').delete().eq('order_id', editOrder.id)
+      if (cleanLines.length) await supabase.from('order_lines').insert(cleanLines.map(l => ({ ...l, order_id: editOrder.id })))
+      onCreated({ ...editOrder, ...form, lines: lines.filter(l => l.product), attachments: editOrder.attachments || [] })
+      setSaving(false)
+      return
+    }
+
+    // ── Create mode ──
     const { data: order, error } = await supabase
       .from('orders')
       .insert({ ...form, section_id: sectionId, created_by: userId, status: 'a_preparer' })
       .select('*').single()
-
     if (error || !order) { setSaving(false); return }
-
-    // Insert lines with optional finished_lot_id
-    if (lines.some(l => l.product)) {
-      await supabase.from('order_lines').insert(
-        lines.filter(l => l.product).map((l, i) => ({
-          ...l,
-          order_id: order.id,
-          sort_order: i,
-          finished_lot_id: lineFinishedLots[i] || null,
-        }))
-      )
-    }
-
+    if (cleanLines.length) await supabase.from('order_lines').insert(cleanLines.map(l => ({ ...l, order_id: order.id })))
     onCreated({ ...order, lines: lines.filter(l => l.product), attachments: [] })
     setSaving(false)
   }
 
   return (
     <form className={styles.form} onSubmit={submit}>
-      <h3 className={styles.formTitle}>Nouvelle commande</h3>
+      <h3 className={styles.formTitle}>{isEdit ? `Modifier la commande #${editOrder?.order_number}` : 'Nouvelle commande'}</h3>
 
       <div className={styles.formGrid2}>
         <div className={styles.field}>
@@ -478,7 +506,7 @@ function NewOrderForm({ sectionId, userId, supabase, onCreated, onCancel }: {
       <div className={styles.formActions}>
         <button type="button" onClick={onCancel} className={styles.cancelBtn}>Annuler</button>
         <button type="submit" disabled={saving} className={styles.saveBtn}>
-          {saving ? 'Création…' : 'Créer la commande'}
+          {saving ? 'Enregistrement…' : (isEdit ? 'Enregistrer les modifications' : 'Créer la commande')}
         </button>
       </div>
     </form>
@@ -606,6 +634,7 @@ export default function CommandesView({ sectionId, userId, profile, supabase }: 
   const [loading, setLoading] = useState(true)
   const [preview, setPreview] = useState<OrderAttachment | null>(null)
   const [statusFilter, setStatusFilter] = useState<string | null>(null)
+  const [editingOrder, setEditingOrder] = useState<Order | null>(null)
 
   useEffect(() => {
     loadOrders()
@@ -723,7 +752,7 @@ export default function CommandesView({ sectionId, userId, profile, supabase }: 
             })}
           </div>
         </div>
-        <button className={styles.newBtn} onClick={() => setTab('new')}>
+        <button className={styles.newBtn} onClick={() => { setEditingOrder(null); setTab('new') }}>
           <i className="ti ti-plus" /> Nouvelle commande
         </button>
       </div>
@@ -736,7 +765,7 @@ export default function CommandesView({ sectionId, userId, profile, supabase }: 
         <button className={tab === 'table' ? styles.tabOn : styles.tabOff} onClick={() => setTab('table')}>
           <i className="ti ti-table" /> Tableau récapitulatif
         </button>
-        <button className={tab === 'new' ? styles.tabOn : styles.tabOff} onClick={() => setTab('new')}>
+        <button className={tab === 'new' ? styles.tabOn : styles.tabOff} onClick={() => { setEditingOrder(null); setTab('new') }}>
           <i className="ti ti-plus" /> Nouvelle commande
         </button>
       </div>
@@ -767,6 +796,7 @@ export default function CommandesView({ sectionId, userId, profile, supabase }: 
                 onUpload={handleUpload}
                 onPreview={setPreview}
                 onDownload={handleDownload}
+                onEdit={(ord) => { setEditingOrder(ord); setTab('new') }}
                 userId={userId}
                 supabase={supabase}
               />
@@ -780,12 +810,17 @@ export default function CommandesView({ sectionId, userId, profile, supabase }: 
         <OrderTable orders={orders} onStatusChange={handleStatusChange} />
       )}
 
-      {/* Nouvelle commande */}
+      {/* Nouvelle commande / Modifier */}
       {tab === 'new' && (
         <NewOrderForm
+          key={editingOrder?.id || 'new'}
+          editOrder={editingOrder || undefined}
           sectionId={sectionId} userId={userId} supabase={supabase}
-          onCreated={order => { setOrders(os => [order, ...os]); setTab('prepare') }}
-          onCancel={() => setTab('prepare')}
+          onCreated={order => {
+            setOrders(os => os.some(o => o.id === order.id) ? os.map(o => o.id === order.id ? order : o) : [order, ...os])
+            setTab('prepare'); setEditingOrder(null)
+          }}
+          onCancel={() => { setTab('prepare'); setEditingOrder(null) }}
         />
       )}
     </div>
