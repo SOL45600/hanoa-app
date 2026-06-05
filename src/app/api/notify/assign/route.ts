@@ -10,10 +10,11 @@ export async function POST(req: NextRequest) {
   if (!RESEND_KEY) return NextResponse.json({ sent: 0, reason: 'RESEND_API_KEY manquant' })
   if (!assigneeId) return NextResponse.json({ sent: 0, reason: 'assigneeId manquant' })
 
-  // Resolve the assignee's real email from the profiles table (service role).
+  // Resolve the assignee's real email from the profiles table.
+  // Anon key (RLS disabled + GRANT ALL) — the service-role key is unreliable in prod.
   const db = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     { auth: { autoRefreshToken: false, persistSession: false } }
   )
   const { data: assignee } = await db
