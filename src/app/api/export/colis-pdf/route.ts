@@ -2,6 +2,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
+import { sellsyToken, findDeliveryByNumber, findInvoiceForDelivery, fetchSellsyPdf } from '@/lib/sellsy'
 
 const VARIETIES: Record<string, string> = {
   PAU: 'Pauetet', COR: 'Corabel', TON: 'Tonda', SEG: 'Segorbe', LEW: 'Lewis',
@@ -34,7 +35,8 @@ const GREY = rgb(0.53, 0.53, 0.5)
 
 export async function GET(request: NextRequest) {
   const lotNumber = request.nextUrl.searchParams.get('lot')
-  const orderId = request.nextUrl.searchParams.get('order')
+  // `order` is the order number, which by convention equals the BDL number.
+  const orderRef = request.nextUrl.searchParams.get('order')
   if (!lotNumber) return NextResponse.json({ error: 'Paramètre lot manquant' }, { status: 400 })
 
   const db = createClient(
@@ -126,20 +128,42 @@ export async function GET(request: NextRequest) {
     fy -= 13
   }
 
-  // ── Merge the BDL (page 2+) if the order has one ──
-  if (orderId) {
-    const { data: att } = await db
-      .from('order_attachments').select('storage_path')
-      .eq('order_id', orderId).eq('doc_type', 'bon_livraison').maybeSingle()
-    if (att?.storage_path) {
-      const { data: signed } = await db.storage.from('hanoa-files').createSignedUrl(att.storage_path, 600)
-      if (signed?.signedUrl) {
-        try {
-          const bdlBytes = await fetch(signed.signedUrl).then(r => r.arrayBuffer())
-          const bdlDoc = await PDFDocument.load(bdlBytes)
-          const copied = await pdf.copyPages(bdlDoc, bdlDoc.getPageIndices())
-          copied.forEach(p => pdf.addPage(p))
-        } catch { /* BDL not a valid PDF — skip merge */ }
+  // Append a PDF (given as bytes) to the document.
+  async function appendPdf(bytes: ArrayBuffer | null) {
+    if (!bytes) return
+    try {
+      const doc = await PDFDocument.load(bytes)
+      const copied = await pdf.copyPages(doc, doc.getPageIndices())
+      copied.forEach(p => pdf.addPage(p))
+    } catch { /* not a valid PDF — skip */ }
+  }
+
+  // ── Pages 2+ : BDL puis facture, récupérés depuis Sellsy via le n° de commande/BDL ──
+  if (orderRef) {
+    let bdlMerged = false
+    const token = await sellsyToken()
+    if (token) {
+      const delivery = await findDeliveryByNumber(token, orderRef)
+      if (delivery) {
+        const bdl = await fetchSellsyPdf(delivery.pdf_link)
+        if (bdl) { await appendPdf(bdl); bdlMerged = true }
+        // Invoice converted from this delivery (linked via parent)
+        const invoice = await findInvoiceForDelivery(token, delivery.id)
+        if (invoice) await appendPdf(await fetchSellsyPdf(invoice.pdf_link))
+      }
+    }
+    // Fallback: BDL uploaded on the order in the app
+    if (!bdlMerged) {
+      const { data: order } = await db.from('orders').select('id').eq('order_number', orderRef).maybeSingle()
+      if (order?.id) {
+        const { data: att } = await db.from('order_attachments').select('storage_path')
+          .eq('order_id', order.id).eq('doc_type', 'bon_livraison').maybeSingle()
+        if (att?.storage_path) {
+          const { data: signed } = await db.storage.from('hanoa-files').createSignedUrl(att.storage_path, 600)
+          if (signed?.signedUrl) {
+            await appendPdf(await fetch(signed.signedUrl).then(r => r.arrayBuffer()).catch(() => null))
+          }
+        }
       }
     }
   }
