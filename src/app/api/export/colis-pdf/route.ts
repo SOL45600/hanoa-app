@@ -108,7 +108,7 @@ export async function GET(request: NextRequest) {
   page.drawText('Agriculture Biologique certifiée - FR-BIO-10', {
     x: M + 16, y: y - 14, size: 11, font: fontBold, color: GREEN,
   })
-  page.drawText('Organisme certificateur : Bureau Veritas / Ecocert', {
+  page.drawText('Organisme certificateur : Bureau Veritas', {
     x: M + 16, y: y - 32, size: 9.5, font, color: GREY,
   })
 

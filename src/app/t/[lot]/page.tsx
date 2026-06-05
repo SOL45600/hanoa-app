@@ -206,7 +206,7 @@ export default async function TraceabilityPage({ params }: { params: { lot: stri
 
           <div className="bio">
             ✓ Agriculture Biologique certifiée · FR-BIO-10<br/>
-            Organisme certificateur : Bureau Veritas / Ecocert
+            Organisme certificateur : Bureau Veritas
           </div>
         </div>
 
