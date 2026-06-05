@@ -587,6 +587,7 @@ export default function CommandesView({ sectionId, userId, profile, supabase }: 
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [preview, setPreview] = useState<OrderAttachment | null>(null)
+  const [statusFilter, setStatusFilter] = useState<string | null>(null)
 
   useEffect(() => {
     loadOrders()
@@ -612,10 +613,14 @@ export default function CommandesView({ sectionId, userId, profile, supabase }: 
   }
 
   const handleStatusChange = async (orderId: string, newStatus: string) => {
+    const prevStatus = orders.find(o => o.id === orderId)?.status
     await supabase.from('orders').update({ status: newStatus }).eq('id', orderId)
 
-    // Level 2: When order is shipped, decrement stock for linked lots
-    if (newStatus === 'envoye') {
+    // Level 2: decrement stock only when moving FORWARD into "envoyé"
+    // (not when downgrading e.g. livré → envoyé, which would double-decrement).
+    const movingForwardToShipped = newStatus === 'envoye'
+      && (!prevStatus || STATUS_ORDER.indexOf(prevStatus) < STATUS_ORDER.indexOf('envoye'))
+    if (movingForwardToShipped) {
       const { data: lines } = await supabase
         .from('order_lines')
         .select('finished_lot_id, quantity')
@@ -686,12 +691,18 @@ export default function CommandesView({ sectionId, userId, profile, supabase }: 
         <div className={styles.headerLeft}>
           <h2>Commandes</h2>
           <div className={styles.stats}>
-            {stats.map(s => (
-              <span key={s.status} className={styles.stat}
-                style={{ color: STATUSES[s.status].color, background: STATUSES[s.status].bg }}>
-                {s.count} {STATUSES[s.status].label.toLowerCase()}
-              </span>
-            ))}
+            {stats.map(s => {
+              const active = statusFilter === s.status && tab === 'prepare'
+              return (
+                <button key={s.status} className={styles.stat}
+                  onClick={() => { setStatusFilter(s.status); setTab('prepare') }}
+                  title={`Voir les commandes « ${STATUSES[s.status].label} »`}
+                  style={{ color: STATUSES[s.status].color, background: STATUSES[s.status].bg,
+                    cursor: 'pointer', border: `1.5px solid ${active ? STATUSES[s.status].color : 'transparent'}` }}>
+                  {s.count} {STATUSES[s.status].label.toLowerCase()}
+                </button>
+              )
+            })}
           </div>
         </div>
         <button className={styles.newBtn} onClick={() => setTab('new')}>
@@ -701,7 +712,7 @@ export default function CommandesView({ sectionId, userId, profile, supabase }: 
 
       {/* Tabs */}
       <div className={styles.tabs}>
-        <button className={tab === 'prepare' ? styles.tabOn : styles.tabOff} onClick={() => setTab('prepare')}>
+        <button className={tab === 'prepare' && !statusFilter ? styles.tabOn : styles.tabOff} onClick={() => { setTab('prepare'); setStatusFilter(null) }}>
           <i className="ti ti-list-check" /> À préparer {pending.length > 0 && <span className={styles.tabBadge}>{pending.length}</span>}
         </button>
         <button className={tab === 'table' ? styles.tabOn : styles.tabOff} onClick={() => setTab('table')}>
@@ -714,28 +725,37 @@ export default function CommandesView({ sectionId, userId, profile, supabase }: 
 
       {loading && <div className={styles.loading}><i className="ti ti-loader" /> Chargement…</div>}
 
-      {/* À préparer */}
-      {!loading && tab === 'prepare' && (
-        <div className={styles.cards}>
-          {pending.length === 0 && (
-            <div className={styles.empty}>
-              <i className="ti ti-package" style={{ fontSize: 32, color: '#d3d1c7' }} />
-              <p>Aucune commande en cours</p>
-            </div>
-          )}
-          {pending.map(o => (
-            <OrderCard key={o.id} order={o}
-              onStatusChange={handleStatusChange}
-              onDelete={handleDelete}
-              onUpload={handleUpload}
-              onPreview={setPreview}
-              onDownload={handleDownload}
-              userId={userId}
-              supabase={supabase}
-            />
-          ))}
-        </div>
-      )}
+      {/* Cartes — par défaut les commandes en cours, ou filtrées par statut cliqué */}
+      {!loading && tab === 'prepare' && (() => {
+        const cardOrders = statusFilter ? orders.filter(o => o.status === statusFilter) : pending
+        return (
+          <div className={styles.cards}>
+            {statusFilter && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, gridColumn: '1 / -1', marginBottom: 2, fontSize: 13, color: 'var(--muted)' }}>
+                <span>Filtre : <strong style={{ color: STATUSES[statusFilter].color }}>{STATUSES[statusFilter].label}</strong></span>
+                <button onClick={() => setStatusFilter(null)} style={{ color: 'var(--green)', fontSize: 13 }}>✕ Tout afficher (en cours)</button>
+              </div>
+            )}
+            {cardOrders.length === 0 && (
+              <div className={styles.empty}>
+                <i className="ti ti-package" style={{ fontSize: 32, color: '#d3d1c7' }} />
+                <p>Aucune commande{statusFilter ? ` « ${STATUSES[statusFilter].label} »` : ' en cours'}</p>
+              </div>
+            )}
+            {cardOrders.map(o => (
+              <OrderCard key={o.id} order={o}
+                onStatusChange={handleStatusChange}
+                onDelete={handleDelete}
+                onUpload={handleUpload}
+                onPreview={setPreview}
+                onDownload={handleDownload}
+                userId={userId}
+                supabase={supabase}
+              />
+            ))}
+          </div>
+        )
+      })()}
 
       {/* Tableau */}
       {!loading && tab === 'table' && (
