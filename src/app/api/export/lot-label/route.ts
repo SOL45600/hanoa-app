@@ -226,8 +226,7 @@ body {
       <span>SAS HANOA</span>
       <span>SIREN : 939 694 139</span>
       <span>1 Le Perrat</span>
-      <span>45600</span>
-      <span>Lion-en-Sullias</span>
+      <span>45600 Lion-en-Sullias</span>
     </div>
     <img class="sol-logo" src="${logoUrl}" alt="SOL"
       onerror="this.style.display='none'" />
