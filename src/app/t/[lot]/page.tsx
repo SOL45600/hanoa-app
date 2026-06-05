@@ -122,7 +122,7 @@ export default async function TraceabilityPage({ params }: { params: { lot: stri
       </head>
       <body>
         <div className="header">
-          <h1>🌰 Traçabilité Noisettes</h1>
+          <h1>🌰 Traçabilité produit</h1>
           <p>Projet SOL · Lion-en-Sullias, Loiret · Agriculture Biologique</p>
           <div className="badge">{fl.lot_number}</div>
         </div>
