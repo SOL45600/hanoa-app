@@ -42,6 +42,33 @@ export default async function TraceabilityPage({ params }: { params: { lot: stri
   const calibration = lot?.lot_calibration || []
   const calibTotal = calibration.reduce((s: number, c: any) => s + c.weight_kg, 0)
 
+  // ── Bon(s) de livraison liés à ce lot (page 2 du QR colis) ──
+  const orderIds = new Set<string>()
+  const { data: linksA } = await admin.from('order_lines').select('order_id').eq('finished_lot_id', fl.id)
+  linksA?.forEach((l: any) => l.order_id && orderIds.add(l.order_id))
+  if (fl.lot_number) {
+    const { data: linksB } = await admin.from('order_lines').select('order_id').eq('lot_number', fl.lot_number)
+    linksB?.forEach((l: any) => l.order_id && orderIds.add(l.order_id))
+    const { data: ordsC } = await admin.from('orders').select('id').eq('lot_number', fl.lot_number)
+    ordsC?.forEach((o: any) => o.id && orderIds.add(o.id))
+  }
+
+  type Bdl = { url: string; name: string; orderNumber: string; client: string; shipDate?: string }
+  const bdls: Bdl[] = []
+  if (orderIds.size) {
+    const ids = Array.from(orderIds)
+    const [{ data: atts }, { data: ords }] = await Promise.all([
+      admin.from('order_attachments').select('order_id, name, storage_path').in('order_id', ids).eq('doc_type', 'bon_livraison'),
+      admin.from('orders').select('id, order_number, client, ship_date').in('id', ids),
+    ])
+    for (const a of (atts || []) as any[]) {
+      const { data: signed } = await admin.storage.from('hanoa-files').createSignedUrl(a.storage_path, 60 * 60 * 24 * 7)
+      if (!signed?.signedUrl) continue
+      const o = (ords || []).find((x: any) => x.id === a.order_id) as any
+      bdls.push({ url: signed.signedUrl, name: a.name, orderNumber: o?.order_number || '', client: o?.client || '', shipDate: o?.ship_date })
+    }
+  }
+
   return (
     <html lang="fr">
       <head>
@@ -69,6 +96,10 @@ export default async function TraceabilityPage({ params }: { params: { lot: stri
           .calib-bar { flex: 1; height: 14px; background: #f0ede6; border-radius: 7px; overflow: hidden; }
           .calib-fill { height: 100%; background: #0f6e56; border-radius: 7px; }
           .bio { background: #e8f5ee; border: 1px solid #0f6e5644; border-radius: 8px; padding: 12px 16px; text-align: center; font-size: 13px; color: #0f6e56; margin-top: 14px; }
+          .bdl-link { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px; background: #fbf6ec; border: 1px solid #ba751733; border-radius: 8px; margin-bottom: 8px; text-decoration: none; color: #2c2c2a; }
+          .bdl-link:last-child { margin-bottom: 0; }
+          .bdl-link .meta { font-size: 12px; color: #888; }
+          .bdl-link .dl { font-size: 13px; color: #ba7517; font-weight: 600; white-space: nowrap; }
           .footer { text-align: center; font-size: 12px; color: #aaa; padding: 20px; }
         `}</style>
       </head>
@@ -134,6 +165,24 @@ export default async function TraceabilityPage({ params }: { params: { lot: stri
                     {(s as any).volume_out_l && ` · ${(s as any).volume_out_l} L huile`}
                   </div>
                 </div>
+              ))}
+            </div>
+          )}
+
+          {/* Bon(s) de livraison */}
+          {bdls.length > 0 && (
+            <div className="card">
+              <h2>Bon de livraison</h2>
+              {bdls.map((b, i) => (
+                <a key={i} className="bdl-link" href={b.url} target="_blank" rel="noopener noreferrer">
+                  <span>
+                    📄 {b.orderNumber ? `Commande #${b.orderNumber}` : b.name}
+                    {(b.client || b.shipDate) && (
+                      <span className="meta"><br/>{b.client}{b.shipDate ? ` · expédié le ${fmtDate(b.shipDate)}` : ''}</span>
+                    )}
+                  </span>
+                  <span className="dl">Télécharger →</span>
+                </a>
               ))}
             </div>
           )}

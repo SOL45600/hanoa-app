@@ -13,6 +13,7 @@ interface Props {
   onAddSection: () => void
   onDelete: (id: string) => void
   onRename: (id: string, label: string) => void
+  onMove: (id: string, dir: 'up' | 'down') => void
   onUsers: () => void
   onCalendar: () => void
   showCalendar: boolean
@@ -34,9 +35,10 @@ function Avatar({ profile, size = 28 }: { profile: Profile; size?: number }) {
   )
 }
 
-function SectionNode({ node, depth, selected, onSelect, onDelete, onRename, unreadCounts }: {
+function SectionNode({ node, depth, selected, onSelect, onDelete, onRename, onMove, unreadCounts }: {
   node: SectionTree; depth: number; selected: SectionTree | null
   onSelect: (s: SectionTree) => void; onDelete: (id: string) => void; onRename: (id: string, label: string) => void
+  onMove: (id: string, dir: 'up' | 'down') => void
   unreadCounts?: Record<string, number>
 }) {
   const [expanded, setExpanded] = useState(depth === 0)
@@ -84,6 +86,12 @@ function SectionNode({ node, depth, selected, onSelect, onDelete, onRename, unre
         }
         {!editing && isSel && (
           <div className={styles.actions} onClick={e => e.stopPropagation()}>
+            <button onClick={() => onMove(node.id, 'up')} title="Monter">
+              <i className="ti ti-chevron-up" style={{ fontSize: 13 }} />
+            </button>
+            <button onClick={() => onMove(node.id, 'down')} title="Descendre">
+              <i className="ti ti-chevron-down" style={{ fontSize: 13 }} />
+            </button>
             <button onClick={() => setEditing(true)} title="Renommer">
               <i className="ti ti-edit" style={{ fontSize: 12 }} />
             </button>
@@ -91,13 +99,13 @@ function SectionNode({ node, depth, selected, onSelect, onDelete, onRename, unre
         )}
       </div>
       {hasChildren && expanded && node.children.map(c => (
-        <SectionNode key={c.id} node={c} depth={depth + 1} selected={selected} onSelect={onSelect} onDelete={onDelete} onRename={onRename} unreadCounts={unreadCounts} />
+        <SectionNode key={c.id} node={c} depth={depth + 1} selected={selected} onSelect={onSelect} onDelete={onDelete} onRename={onRename} onMove={onMove} unreadCounts={unreadCounts} />
       ))}
     </div>
   )
 }
 
-export default function Sidebar({ tree, sections, selected, onSelect, onHome, onClose, onAddSection, onDelete, onRename, onUsers, onCalendar, showCalendar, unreadCounts, profile, onLogout }: Props) {
+export default function Sidebar({ tree, sections, selected, onSelect, onHome, onClose, onAddSection, onDelete, onRename, onMove, onUsers, onCalendar, showCalendar, unreadCounts, profile, onLogout }: Props) {
   return (
     <div className={styles.sidebar}>
       <div className={styles.header}>
@@ -118,7 +126,7 @@ export default function Sidebar({ tree, sections, selected, onSelect, onHome, on
         <p className={styles.navLabel}>Rubriques</p>
         {tree.map(node => (
           <SectionNode key={node.id} node={node} depth={0} selected={selected}
-            onSelect={onSelect} onDelete={onDelete} onRename={onRename} unreadCounts={unreadCounts} />
+            onSelect={onSelect} onDelete={onDelete} onRename={onRename} onMove={onMove} unreadCounts={unreadCounts} />
         ))}
         <button onClick={onAddSection} className={styles.addBtn}>
           <i className="ti ti-plus" style={{ fontSize: 14 }} />

@@ -61,5 +61,13 @@ export function buildTree(sections: Section[]): SectionTree[] {
       roots.push(map.get(s.id)!)
     }
   })
+  // Sort siblings by sort_order so reordering is reflected everywhere.
+  const byOrder = (a: SectionTree, b: SectionTree) =>
+    (a.sort_order - b.sort_order) || a.label.localeCompare(b.label)
+  const sortRec = (nodes: SectionTree[]) => {
+    nodes.sort(byOrder)
+    nodes.forEach(n => sortRec(n.children))
+  }
+  sortRec(roots)
   return roots
 }

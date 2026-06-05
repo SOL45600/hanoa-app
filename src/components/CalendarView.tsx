@@ -41,7 +41,16 @@ const PLANNING_ROWS = [
       { key: 'divers', label: 'Divers' },
     ]
   },
+  {
+    group: 'Commandes', icon: 'ti-package', color: '#ba7517',
+    rows: [
+      { key: 'commandes', label: 'À préparer' },
+    ]
+  },
 ]
+
+// Row that is auto-populated from orders (read-only), not from tasks.
+const COMMANDES_ROW = 'commandes'
 
 const ROW_KEYS = PLANNING_ROWS.flatMap(g => g.rows.map(r => r.key))
 
@@ -89,6 +98,19 @@ interface Task {
   created_by: string
   status: string
   color?: string
+}
+
+interface OrderLite {
+  id: string
+  order_number: string
+  client: string
+  ship_date: string
+  status: string
+}
+
+// Status colors mirror CommandesView
+const ORDER_STATUS_COLOR: Record<string, string> = {
+  a_preparer: '#ba7517', prepare: '#185fa5', envoye: '#0f6e56', livre: '#888',
 }
 
 interface Props {
@@ -198,10 +220,11 @@ function TaskModal({ weekDate, rowKey, rowLabel, profiles, userId, onSave, onClo
 /* ─── MAIN ───────────────────────────────────────────────────── */
 export default function CalendarView({ supabase, userId, profile, myOnly = false }: Props) {
   const [tasks, setTasks] = useState<Task[]>([])
+  const [orders, setOrders] = useState<OrderLite[]>([])
   const [profiles, setProfiles] = useState<Profile[]>([])
   const [weather, setWeather] = useState<Record<string, WeatherData>>({})
   const [startWeek, setStartWeek] = useState(() => getMondayOfWeek(new Date()))
-  const [numWeeks] = useState(8)
+  const [numWeeks] = useState(12)
   const [addingCell, setAddingCell] = useState<{ week: Date; rowKey: string; rowLabel: string } | null>(null)
   const [filterUser, setFilterUser] = useState<string>(myOnly ? userId : '')
   const [saveError, setSaveError] = useState('')
@@ -211,6 +234,12 @@ export default function CalendarView({ supabase, userId, profile, myOnly = false
     supabase.from('profiles').select('*').order('full_name').then(({ data }) => {
       if (data && data.length > 0) setProfiles(data)
     })
+    // Orders to prepare — shown on the "Commandes" row, week before shipping.
+    supabase.from('orders')
+      .select('id, order_number, client, ship_date, status')
+      .not('ship_date', 'is', null)
+      .neq('status', 'livre')
+      .then(({ data }) => setOrders((data || []) as OrderLite[]))
     // Fetch weather from Weenat station
     fetch('/api/weenat?type=device&id=76938&days=14&step=day')
       .then(r => r.json())
@@ -230,6 +259,32 @@ export default function CalendarView({ supabase, userId, profile, myOnly = false
     const wk = weekKey(week)
     return tasks.filter(t => t.row_key === rowKey && t.week_start === wk &&
       (!filterUser || t.assigned_to === filterUser))
+  }
+
+  // Commandes are auto-assigned to Peter and shown the week BEFORE shipping.
+  const peter = profiles.find(p => p.email?.toLowerCase() === 'peter@s-o-l.fr')
+  const prepWeekKey = (shipDate: string) => weekKey(addWeeks(getMondayOfWeek(new Date(shipDate)), -1))
+
+  const getOrdersForCell = (week: Date) => {
+    const wk = weekKey(week)
+    // When filtering by a user other than Peter, commandes (Peter's) are hidden.
+    if (filterUser && peter && filterUser !== peter.id) return []
+    return orders.filter(o => o.ship_date && prepWeekKey(o.ship_date) === wk)
+  }
+
+  // Weather for a week: aggregate over its 7 days (Weenat = past/present only).
+  const getWeekWeather = (monday: Date): WeatherData | null => {
+    let tMax: number | undefined, rain = 0, hasRain = false, found = false
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(monday); d.setDate(d.getDate() + i)
+      const wd = weather[weekKey(d)]
+      if (!wd) continue
+      found = true
+      if (wd.temp_max != null) tMax = tMax == null ? wd.temp_max : Math.max(tMax, wd.temp_max)
+      if (wd.rainfall != null) { rain += wd.rainfall; hasRain = true }
+    }
+    if (!found) return null
+    return { date: weekKey(monday), temp_max: tMax, rainfall: hasRain ? rain : undefined }
   }
 
   const addTask = async (data: Omit<Task, 'id' | 'created_by'>) => {
@@ -316,8 +371,7 @@ export default function CalendarView({ supabase, userId, profile, myOnly = false
                     <div className={styles.weekNum}>{num}</div>
                     <div className={styles.weekRange}>{range}</div>
                     {(() => {
-                      const dayKey = weekKey(w)
-                      const wd = weather[dayKey]
+                      const wd = getWeekWeather(w)
                       if (!wd) return null
                       return (
                         <div className={styles.weekWeather}>
@@ -344,20 +398,42 @@ export default function CalendarView({ supabase, userId, profile, myOnly = false
                     </td>
                   )}
                   <td className={styles.tdRow}>{row.label}</td>
-                  {weeks.map(w => {
-                    const cellTasks = getTasksForCell(row.key, w)
-                    return (
-                      <td key={weekKey(w)}
-                        className={`${styles.tdCell} ${isThisWeek(w) ? styles.tdToday : ''}`}
-                        onClick={() => setAddingCell({ week: w, rowKey: row.key, rowLabel: row.label })}>
-                        {cellTasks.map(t => (
-                          <TaskChip key={t.id} task={t} profiles={allProfiles}
-                            onDelete={() => deleteTask(t.id)} currentUserId={userId} />
-                        ))}
-                        <div className={styles.cellAdd}>+</div>
-                      </td>
-                    )
-                  })}
+                  {row.key === COMMANDES_ROW
+                    ? weeks.map(w => {
+                        const cellOrders = getOrdersForCell(w)
+                        return (
+                          <td key={weekKey(w)}
+                            className={`${styles.tdCell} ${isThisWeek(w) ? styles.tdToday : ''}`}>
+                            {cellOrders.map(o => (
+                              <div key={o.id} className={`${styles.chip}`}
+                                style={{ borderLeftColor: ORDER_STATUS_COLOR[o.status] || '#ba7517' }}
+                                title={`Commande #${o.order_number} — ${o.client} · envoi ${fmtWeekHeader(getMondayOfWeek(new Date(o.ship_date))).range}`}>
+                                <span className={styles.chipTitle}>#{o.order_number} {o.client}</span>
+                                {peter && (
+                                  <span className={styles.chipAssignee}
+                                    style={{ background: (peter.color || '#ba7517') + '22', color: peter.color || '#ba7517' }}>
+                                    {peter.initials}
+                                  </span>
+                                )}
+                              </div>
+                            ))}
+                          </td>
+                        )
+                      })
+                    : weeks.map(w => {
+                        const cellTasks = getTasksForCell(row.key, w)
+                        return (
+                          <td key={weekKey(w)}
+                            className={`${styles.tdCell} ${isThisWeek(w) ? styles.tdToday : ''}`}
+                            onClick={() => setAddingCell({ week: w, rowKey: row.key, rowLabel: row.label })}>
+                            {cellTasks.map(t => (
+                              <TaskChip key={t.id} task={t} profiles={allProfiles}
+                                onDelete={() => deleteTask(t.id)} currentUserId={userId} />
+                            ))}
+                            <div className={styles.cellAdd}>+</div>
+                          </td>
+                        )
+                      })}
                 </tr>
               ))
             ))}

@@ -118,6 +118,29 @@ export default function AppShell({ user, profile, initialSections }: Props) {
     }
   }
 
+  const handleMoveSection = async (id: string, dir: 'up' | 'down') => {
+    const node = sections.find(s => s.id === id)
+    if (!node) return
+    const siblings = sections
+      .filter(s => s.parent_id === node.parent_id)
+      .sort((a, b) => (a.sort_order - b.sort_order) || a.label.localeCompare(b.label))
+    const idx = siblings.findIndex(s => s.id === id)
+    const target = idx + (dir === 'up' ? -1 : 1)
+    if (target < 0 || target >= siblings.length) return
+
+    const reordered = [...siblings]
+    ;[reordered[idx], reordered[target]] = [reordered[target], reordered[idx]]
+    const updates = reordered.map((s, i) => ({ id: s.id, sort_order: i }))
+
+    setSections(prev => prev.map(s => {
+      const u = updates.find(u => u.id === s.id)
+      return u ? { ...s, sort_order: u.sort_order } : s
+    }))
+    await Promise.all(updates.map(u =>
+      supabase.from('sections').update({ sort_order: u.sort_order }).eq('id', u.id)
+    ))
+  }
+
   const handleLogout = async () => {
     await supabase.auth.signOut()
     window.location.href = '/login'
@@ -148,6 +171,7 @@ export default function AppShell({ user, profile, initialSections }: Props) {
             onAddSection={() => setShowAddSection(true)}
             onDelete={handleDeleteSection}
             onRename={handleRenameSection}
+            onMove={handleMoveSection}
             profile={profile}
             onLogout={handleLogout}
           />
