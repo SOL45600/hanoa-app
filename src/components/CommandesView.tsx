@@ -128,20 +128,39 @@ function OrderCard({ order, onStatusChange, onUpload, onPreview, onDownload, onD
     return s
   })()
 
-  // Option A: download the 3 PDFs (étiquette + BDL + facture) and open a pre-filled email.
+  // Option A: download the PDFs (étiquette + BDL + facture) and open a pre-filled email.
   const prepareClientEmail = async () => {
-    const dl = (url: string) => {
-      const a = document.createElement('a')
-      a.href = url; a.download = ''
-      document.body.appendChild(a); a.click(); a.remove()
+    // Fetch the file and download it only if it's really a PDF (avoids saving JSON errors).
+    const dlBlob = async (url: string, filename: string): Promise<boolean> => {
+      try {
+        const res = await fetch(url)
+        if (!res.ok || !(res.headers.get('content-type') || '').includes('pdf')) return false
+        const blob = await res.blob()
+        const a = document.createElement('a')
+        a.href = URL.createObjectURL(blob)
+        a.download = filename
+        document.body.appendChild(a); a.click(); a.remove()
+        setTimeout(() => URL.revokeObjectURL(a.href), 15000)
+        return true
+      } catch { return false }
     }
+
     let info: any = { found: false }
     try { info = await fetch(`/api/order-client?order=${encodeURIComponent(order.order_number)}`).then(r => r.json()) } catch { /* ignore */ }
 
-    let delay = 0
-    Array.from(lotNumbers).forEach(ln => { setTimeout(() => dl(`/api/export/colis-pdf?lot=${encodeURIComponent(ln)}`), delay); delay += 400 })
-    setTimeout(() => dl(`/api/export/sellsy-doc?order=${encodeURIComponent(order.order_number)}&type=delivery`), delay); delay += 400
-    if (info.hasInvoice) { setTimeout(() => dl(`/api/export/sellsy-doc?order=${encodeURIComponent(order.order_number)}&type=invoice`), delay); delay += 400 }
+    const missing: string[] = []
+    for (const ln of Array.from(lotNumbers)) {
+      const ok = await dlBlob(`/api/export/colis-pdf?lot=${encodeURIComponent(ln)}`, `Etiquette-${ln}.pdf`)
+      if (!ok) missing.push(`l'étiquette du lot « ${ln} » (lot non enregistré ?)`)
+    }
+    const bdlOk = await dlBlob(`/api/export/sellsy-doc?order=${encodeURIComponent(order.order_number)}&type=delivery`, `${order.order_number}.pdf`)
+    if (!bdlOk) missing.push('le bon de livraison (BDL introuvable dans Sellsy)')
+    if (info.hasInvoice) {
+      const invOk = await dlBlob(`/api/export/sellsy-doc?order=${encodeURIComponent(order.order_number)}&type=invoice`, `Facture-${order.order_number}.pdf`)
+      if (!invOk) missing.push('la facture')
+    } else {
+      missing.push("la facture (BDL pas encore converti en facture dans Sellsy)")
+    }
 
     const body = [
       'Bonjour,', '',
@@ -151,13 +170,12 @@ function OrderCard({ order, onStatusChange, onUpload, onPreview, onDownload, onD
     ].join('\n')
     const subject = `Votre commande ${order.order_number} — SOL`
     const to = info.email || ''
-    setTimeout(() => { window.location.href = `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}` }, delay + 300)
+    window.location.href = `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
 
-    setTimeout(() => {
-      if (!info.found) alert('BDL/facture introuvables dans Sellsy — vérifie que le n° de commande = n° de BDL. (Étiquette téléchargée.)')
-      else if (!info.hasInvoice) alert("Facture non trouvée (le BDL n'a peut-être pas encore été converti en facture dans Sellsy). Étiquette + BDL téléchargés.")
-      else if (!info.email) alert('Email du client introuvable dans Sellsy (remplis le contact de facturation). Documents téléchargés, complète le destinataire à la main.')
-    }, delay + 500)
+    const notes: string[] = []
+    if (!to) notes.push('destinataire vide (renseigne le contact de facturation dans Sellsy)')
+    if (missing.length) notes.push('non joint(s) : ' + missing.join(' ; '))
+    if (notes.length) setTimeout(() => alert('Documents téléchargés. À compléter à la main :\n\n- ' + notes.join('\n- ')), 300)
   }
 
   return (
