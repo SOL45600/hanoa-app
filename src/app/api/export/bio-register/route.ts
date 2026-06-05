@@ -14,9 +14,10 @@ function fmtDate(d?: string) {
 }
 
 export async function GET() {
+  // Anon key (RLS disabled + GRANT ALL) — the service-role key is unreliable in prod.
   const admin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     { auth: { autoRefreshToken: false, persistSession: false } }
   )
 

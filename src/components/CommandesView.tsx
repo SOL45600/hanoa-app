@@ -171,7 +171,7 @@ function OrderCard({ order, onStatusChange, onUpload, onPreview, onDownload, onD
           <div className={styles.lotLabels}>
             {Array.from(lotNumbers).map(ln => (
               <a key={ln}
-                href={`/api/export/lot-label?lot=${encodeURIComponent(ln)}`}
+                href={`/api/export/lot-label?lot=${encodeURIComponent(ln)}&order=${encodeURIComponent(order.id)}`}
                 target="_blank"
                 className={styles.lotLabelBtn}>
                 <i className="ti ti-tag" style={{ fontSize: 12 }} />

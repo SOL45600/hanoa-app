@@ -37,9 +37,15 @@ export async function GET(request: NextRequest) {
     .eq('id', fl.parent_lot_id).maybeSingle()
 
   const origin = request.nextUrl.origin
+  const orderId = request.nextUrl.searchParams.get('order')
   const traceUrl = `${origin}/t/${encodeURIComponent(lotNumber)}`
+  // When generated from an order, the QR leads to the combined colis PDF
+  // (regulatory page + BDL). Otherwise it leads to the public traceability page.
+  const qrTarget = orderId
+    ? `${origin}/api/export/colis-pdf?lot=${encodeURIComponent(lotNumber)}&order=${encodeURIComponent(orderId)}`
+    : traceUrl
   // Generate the QR server-side (Google Image Charts was shut down) — no external call.
-  const qrUrl = await QRCode.toDataURL(traceUrl, {
+  const qrUrl = await QRCode.toDataURL(qrTarget, {
     width: 240, margin: 1, errorCorrectionLevel: 'H',
   })
   const logoUrl = `${origin}/sol-logo.png`
@@ -191,7 +197,7 @@ body {
 <body>
 
 <div class="controls">
-  <button class="btn btn-trace" onclick="window.open('${traceUrl}','_blank')">🔗 Traçabilité</button>
+  <button class="btn btn-trace" onclick="window.open('${qrTarget}','_blank')">🔗 ${orderId ? 'PDF colis' : 'Traçabilité'}</button>
   <button class="btn btn-print" onclick="window.print()">🖨️ Imprimer (Zebra)</button>
 </div>
 
