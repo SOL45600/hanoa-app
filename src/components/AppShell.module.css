@@ -3,6 +3,9 @@
   height: 100vh;
   overflow: hidden;
   position: relative;
+  /* Opaque app background — covers the iOS PWA splash photo (body::before)
+     so it never bleeds through transparent areas and hides text. */
+  background: var(--bg);
 }
 
 .overlay {

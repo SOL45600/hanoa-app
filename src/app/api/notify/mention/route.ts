@@ -7,6 +7,7 @@ const APP_URL = 'https://hanoa-app.vercel.app'
 const USER_EMAILS: Record<string, string> = {
   'benjamin': 'benjamin@s-o-l.fr',
   'nathalie': 'nathalie@s-o-l.fr',
+  'peter': 'peter@s-o-l.fr',
 }
 
 export async function POST(req: NextRequest) {

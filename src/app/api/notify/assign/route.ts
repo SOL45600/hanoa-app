@@ -1,32 +1,31 @@
 import { NextResponse, type NextRequest } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
 
 const RESEND_KEY = process.env.RESEND_API_KEY
 const APP_URL = 'https://hanoa-app.vercel.app'
 
-const USER_EMAILS: Record<string, string> = {
-  'benjamin': 'benjamin@s-o-l.fr',
-  'nathalie': 'nathalie@s-o-l.fr',
-}
-
-// Also accept assigneeId → look up email
-const USER_EMAILS_BY_ID: Record<string, { email: string; name: string }> = {}
-
 export async function POST(req: NextRequest) {
   const { assigneeId, assignerName, taskTitle, weekLabel, rowLabel } = await req.json()
 
-  if (!RESEND_KEY) return NextResponse.json({ sent: 0 })
+  if (!RESEND_KEY) return NextResponse.json({ sent: 0, reason: 'RESEND_API_KEY manquant' })
+  if (!assigneeId) return NextResponse.json({ sent: 0, reason: 'assigneeId manquant' })
 
-  // Try to find email by ID (simplified — in production fetch from DB)
-  // For now, try matching known users
-  const knownUsers: Record<string, string> = {
-    'benjamin@s-o-l.fr': 'benjamin@s-o-l.fr',
-    'nathalie@s-o-l.fr': 'nathalie@s-o-l.fr',
+  // Resolve the assignee's real email from the profiles table (service role).
+  const db = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+  const { data: assignee } = await db
+    .from('profiles').select('email, full_name')
+    .eq('id', assigneeId).maybeSingle()
+
+  const targetEmail = assignee?.email
+  if (!targetEmail) {
+    return NextResponse.json({ sent: 0, reason: 'email assigné introuvable' })
   }
 
-  // We'll send to a fallback if we can't resolve
-  const targetEmail = process.env.ALERT_EMAIL || 'benjamin@s-o-l.fr'
-
-  await fetch('https://api.resend.com/emails', {
+  const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: `Bearer ${RESEND_KEY}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -53,5 +52,10 @@ export async function POST(req: NextRequest) {
     }),
   })
 
-  return NextResponse.json({ sent: 1 })
+  if (!res.ok) {
+    const err = await res.text()
+    console.error('Resend assign error:', res.status, err)
+    return NextResponse.json({ sent: 0, error: err }, { status: 502 })
+  }
+  return NextResponse.json({ sent: 1, to: targetEmail })
 }

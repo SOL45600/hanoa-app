@@ -47,6 +47,7 @@
   padding: 5px 6px; vertical-align: top; border-left: 0.5px solid var(--border);
   border-top: 0.5px solid var(--border);
   cursor: pointer; min-height: 40px; transition: background 0.1s;
+  background: #fff; /* opaque — prevents iOS PWA splash photo bleeding through */
 }
 .tdCell:hover { background: #f5f8f6; }
 .tdToday { background: #f0f9f4 !important; }
