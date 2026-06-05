@@ -119,6 +119,47 @@ function OrderCard({ order, onStatusChange, onUpload, onPreview, onDownload, onD
   const getAttachment = (docType: string) =>
     order.attachments?.find(a => a.doc_type === docType)
 
+  // Lot numbers on this order (linked finished lots, line lot numbers, or order-level)
+  const lotNumbers = (() => {
+    const s = new Set<string>()
+    ;(order.lines || []).forEach((l: any) => { if (l.finished_lots?.lot_number) s.add(l.finished_lots.lot_number) })
+    ;(order.lines || []).forEach((l: any) => { if (l.lot_number && l.lot_number.trim() && !l.lot_number.toLowerCase().includes('xxxx')) s.add(l.lot_number.trim()) })
+    if (order.lot_number && order.lot_number.trim() && !order.lot_number.toLowerCase().includes('xxxx')) s.add(order.lot_number.trim())
+    return s
+  })()
+
+  // Option A: download the 3 PDFs (étiquette + BDL + facture) and open a pre-filled email.
+  const prepareClientEmail = async () => {
+    const dl = (url: string) => {
+      const a = document.createElement('a')
+      a.href = url; a.download = ''
+      document.body.appendChild(a); a.click(); a.remove()
+    }
+    let info: any = { found: false }
+    try { info = await fetch(`/api/order-client?order=${encodeURIComponent(order.order_number)}`).then(r => r.json()) } catch { /* ignore */ }
+
+    let delay = 0
+    Array.from(lotNumbers).forEach(ln => { setTimeout(() => dl(`/api/export/colis-pdf?lot=${encodeURIComponent(ln)}`), delay); delay += 400 })
+    setTimeout(() => dl(`/api/export/sellsy-doc?order=${encodeURIComponent(order.order_number)}&type=delivery`), delay); delay += 400
+    if (info.hasInvoice) { setTimeout(() => dl(`/api/export/sellsy-doc?order=${encodeURIComponent(order.order_number)}&type=invoice`), delay); delay += 400 }
+
+    const body = [
+      'Bonjour,', '',
+      'Je vous remercie pour votre commande. Vous trouverez ci-joint les informations techniques de vos produits, le bon de livraison ainsi que la facture.', '',
+      'Vous remerciant pour votre confiance.', '',
+      'Bien cordialement,', 'Benjamin pour S.O.L.',
+    ].join('\n')
+    const subject = `Votre commande ${order.order_number} — SOL`
+    const to = info.email || ''
+    setTimeout(() => { window.location.href = `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}` }, delay + 300)
+
+    setTimeout(() => {
+      if (!info.found) alert('BDL/facture introuvables dans Sellsy — vérifie que le n° de commande = n° de BDL. (Étiquette téléchargée.)')
+      else if (!info.hasInvoice) alert("Facture non trouvée (le BDL n'a peut-être pas encore été converti en facture dans Sellsy). Étiquette + BDL téléchargés.")
+      else if (!info.email) alert('Email du client introuvable dans Sellsy (remplis le contact de facturation). Documents téléchargés, complète le destinataire à la main.')
+    }, delay + 500)
+  }
+
   return (
     <div className={`${styles.card} ${order.status === 'livre' ? styles.cardDone : ''}`}>
       <div className={styles.cardHeader}>
@@ -146,41 +187,30 @@ function OrderCard({ order, onStatusChange, onUpload, onPreview, onDownload, onD
 
       {order.lines && order.lines.length > 0 && <LinesDisplay lines={order.lines} />}
 
-      {/* Étiquettes lots — depuis lignes liées OU lot_number de la commande */}
-      {(() => {
-        // Collect all lot numbers: from linked finished_lots or from line lot_number field
-        const lotNumbers = new Set<string>()
+      {/* Étiquettes lots */}
+      {lotNumbers.size > 0 && (
+        <div className={styles.lotLabels}>
+          {Array.from(lotNumbers).map(ln => (
+            <a key={ln}
+              href={`/api/export/lot-label?lot=${encodeURIComponent(ln)}&order=${encodeURIComponent(order.order_number)}`}
+              target="_blank"
+              className={styles.lotLabelBtn}>
+              <i className="ti ti-tag" style={{ fontSize: 12 }} />
+              Étiquette {ln}
+            </a>
+          ))}
+        </div>
+      )}
 
-        // From linked finished lots (via stock selector)
-        ;(order.lines || []).forEach((l: any) => {
-          if (l.finished_lots?.lot_number) lotNumbers.add(l.finished_lots.lot_number)
-        })
-
-        // From manually entered lot numbers on lines
-        ;(order.lines || []).forEach((l: any) => {
-          if (l.lot_number && l.lot_number.trim() && !l.lot_number.toLowerCase().includes('xxxx'))
-            lotNumbers.add(l.lot_number.trim())
-        })
-
-        // From the order-level lot_number
-        if (order.lot_number && order.lot_number.trim() && !order.lot_number.toLowerCase().includes('xxxx'))
-          lotNumbers.add(order.lot_number.trim())
-
-        if (lotNumbers.size === 0) return null
-        return (
-          <div className={styles.lotLabels}>
-            {Array.from(lotNumbers).map(ln => (
-              <a key={ln}
-                href={`/api/export/lot-label?lot=${encodeURIComponent(ln)}&order=${encodeURIComponent(order.order_number)}`}
-                target="_blank"
-                className={styles.lotLabelBtn}>
-                <i className="ti ti-tag" style={{ fontSize: 12 }} />
-                Étiquette {ln}
-              </a>
-            ))}
-          </div>
-        )
-      })()}
+      {/* Option A — préparer l'email client (télécharge étiquette + BDL + facture, ouvre un mail pré-rempli) */}
+      <button
+        onClick={prepareClientEmail}
+        title="Télécharge l'étiquette, le BDL et la facture, puis ouvre un email pré-rempli"
+        style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px', marginTop: 10,
+          background: '#e1f5ee', color: '#0f6e56', border: '0.5px solid #0f6e5644', borderRadius: 8, fontSize: 13 }}>
+        <i className="ti ti-mail-forward" style={{ fontSize: 14 }} />
+        Préparer l'email client
+      </button>
 
       {/* Documents */}
       <div className={styles.docs}>

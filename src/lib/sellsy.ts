@@ -60,6 +60,39 @@ export async function findInvoiceForDelivery(token: string, deliveryId: number):
   return null
 }
 
+// Resolve the client's email for a delivery: company's invoicing contact first,
+// then company email, then the delivery's related contact.
+export async function getClientEmail(
+  token: string,
+  delivery: SellsyDoc & { related?: any[]; company_name?: string }
+): Promise<{ email?: string; name?: string }> {
+  const related: any[] = (delivery as any).related || []
+  let name: string | undefined = (delivery as any).company_name
+  let email: string | undefined
+
+  const companyRel = related.find(r => r.type === 'company')
+  if (companyRel) {
+    const company = await api(token, `/companies/${companyRel.id}`)
+    if (company) {
+      name = company.name || name
+      const contactId = company.invoicing_contact_id || company.main_contact_id
+      if (contactId) {
+        const contact = await api(token, `/contacts/${contactId}`)
+        if (contact?.email) email = contact.email
+      }
+      if (!email && company.email) email = company.email
+    }
+  }
+  if (!email) {
+    const contactRel = related.find(r => r.type === 'contact')
+    if (contactRel) {
+      const contact = await api(token, `/contacts/${contactRel.id}`)
+      if (contact?.email) email = contact.email
+    }
+  }
+  return { email, name }
+}
+
 // Download a Sellsy document PDF (pdf_link is self-authenticated).
 export async function fetchSellsyPdf(pdfLink?: string): Promise<ArrayBuffer | null> {
   if (!pdfLink) return null
