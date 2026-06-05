@@ -10,18 +10,22 @@ export async function POST(req: NextRequest) {
   if (!RESEND_KEY) return NextResponse.json({ sent: 0, reason: 'RESEND_API_KEY manquant' })
   if (!assigneeId) return NextResponse.json({ sent: 0, reason: 'assigneeId manquant' })
 
-  // Resolve the assignee's real email from the profiles table.
-  // Anon key (RLS disabled + GRANT ALL) — the service-role key is unreliable in prod.
+  // `profiles` has no email column (emails live in auth.users). We fetch the
+  // assignee's name (anon key — RLS disabled) and map it to an email, like notify/mention.
   const db = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     { auth: { autoRefreshToken: false, persistSession: false } }
   )
   const { data: assignee } = await db
-    .from('profiles').select('email, full_name')
+    .from('profiles').select('full_name')
     .eq('id', assigneeId).maybeSingle()
 
-  const targetEmail = assignee?.email
+  const USER_EMAILS: Record<string, string> = {
+    benjamin: 'benjamin@s-o-l.fr', nathalie: 'nathalie@s-o-l.fr', peter: 'peter@s-o-l.fr',
+  }
+  const firstName = (assignee?.full_name || '').trim().split(/\s+/)[0].toLowerCase()
+  const targetEmail = USER_EMAILS[firstName]
   if (!targetEmail) {
     return NextResponse.json({ sent: 0, reason: 'email assigné introuvable' })
   }
