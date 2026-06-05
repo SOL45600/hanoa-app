@@ -1,5 +1,4 @@
 import { createClient } from '@supabase/supabase-js'
-import { notFound } from 'next/navigation'
 
 const VARIETIES: Record<string, string> = {
   PAU: 'Pauetet', COR: 'Corabel', TON: 'Tonda', SEG: 'Segorbe', LEW: 'Lewis',
@@ -28,19 +27,35 @@ export default async function TraceabilityPage({ params }: { params: { lot: stri
     { auth: { autoRefreshToken: false, persistSession: false } }
   )
 
-  // Find finished lot by lot_number
+  // Find finished lot — separate queries (parent_lot_id has no FK constraint,
+  // which broke PostgREST embedding and made the page return 404).
   const { data: fl } = await admin
-    .from('finished_lots')
-    .select('*, lots(*, lot_stages(*), lot_calibration(*))')
-    .eq('lot_number', params.lot)
-    .single()
+    .from('finished_lots').select('*')
+    .eq('lot_number', params.lot).maybeSingle()
 
-  if (!fl) notFound()
+  if (!fl) {
+    return (
+      <html lang="fr"><head><meta charSet="utf-8" /><title>Lot introuvable</title></head>
+        <body style={{ fontFamily: 'Georgia, serif', background: '#f5f2eb', color: '#2c2c2a', textAlign: 'center', padding: '60px 20px' }}>
+          <h1 style={{ color: '#0f6e56' }}>🌰 Lot introuvable</h1>
+          <p style={{ marginTop: 12, color: '#888' }}>Le lot « {params.lot} » n&apos;a pas été trouvé.</p>
+        </body>
+      </html>
+    )
+  }
 
-  const lot = fl.lots as any
-  const stages = (lot?.lot_stages || []).sort((a: any, b: any) => a.stage_date.localeCompare(b.stage_date))
-  const calibration = lot?.lot_calibration || []
-  const calibTotal = calibration.reduce((s: number, c: any) => s + c.weight_kg, 0)
+  const { data: lot } = fl.parent_lot_id
+    ? await admin.from('lots').select('*').eq('id', fl.parent_lot_id).maybeSingle()
+    : { data: null as any }
+  const { data: stagesRaw } = lot
+    ? await admin.from('lot_stages').select('*').eq('lot_id', lot.id)
+    : { data: [] as any[] }
+  const { data: calibRaw } = lot
+    ? await admin.from('lot_calibration').select('*').eq('lot_id', lot.id)
+    : { data: [] as any[] }
+  const stages = (stagesRaw || []).sort((a: any, b: any) => (a.stage_date || '').localeCompare(b.stage_date || ''))
+  const calibration = calibRaw || []
+  const calibTotal = calibration.reduce((s: number, c: any) => s + (c.weight_kg || 0), 0)
 
   // ── Bon(s) de livraison liés à ce lot (page 2 du QR colis) ──
   const orderIds = new Set<string>()

@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import QRCode from 'qrcode'
 
 const VARIETIES: Record<string, string> = {
   PAU: 'Pauetet', COR: 'Corabel', TON: 'Tonda', SEG: 'Segorbe', LEW: 'Lewis',
@@ -37,7 +38,10 @@ export async function GET(request: NextRequest) {
 
   const origin = request.nextUrl.origin
   const traceUrl = `${origin}/t/${encodeURIComponent(lotNumber)}`
-  const qrUrl = `https://chart.googleapis.com/chart?chs=240x240&cht=qr&chl=${encodeURIComponent(traceUrl)}&choe=UTF-8&chld=H|1`
+  // Generate the QR server-side (Google Image Charts was shut down) — no external call.
+  const qrUrl = await QRCode.toDataURL(traceUrl, {
+    width: 240, margin: 1, errorCorrectionLevel: 'H',
+  })
   const logoUrl = `${origin}/sol-logo.png`
 
   const variety  = lot?.variety ? VARIETIES[lot.variety] || lot.variety : ''
@@ -170,12 +174,14 @@ body {
   flex-shrink: 0;
 }
 
-/* ── SCREEN PREVIEW (3× scale) ── */
+/* ── SCREEN PREVIEW (scaled label, normal-size controls) ── */
 @media screen {
-  html { background: #e8e4dc; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 20px; }
-  body { transform: scale(3.2); transform-origin: top center; margin: 100px 0 380px 0; box-shadow: 0 4px 20px rgba(0,0,0,0.25); }
-  .controls { position: fixed; top: 16px; right: 16px; display: flex; gap: 8px; z-index: 999; }
-  .btn { padding: 10px 18px; border-radius: 8px; font-size: 14px; cursor: pointer; font-family: Arial; font-weight: 600; border: none; }
+  html { background: #e8e4dc; }
+  /* Body is NOT transformed, so the fixed controls stay normal size and on top. */
+  body { width: auto; height: auto; min-height: 100vh; overflow: visible; display: flex; justify-content: center; align-items: flex-start; padding: 16px; }
+  .label { transform: scale(3); transform-origin: top center; margin: 120px 0 460px 0; box-shadow: 0 4px 20px rgba(0,0,0,0.25); }
+  .controls { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; z-index: 999; }
+  .btn { padding: 10px 18px; border-radius: 8px; font-size: 14px; cursor: pointer; font-family: Arial; font-weight: 600; border: none; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
   .btn-print { background: #0f6e56; color: #fff; }
   .btn-trace { background: #fff; color: #0f6e56; border: 1.5px solid #0f6e56; }
 }
