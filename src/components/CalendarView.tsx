@@ -95,6 +95,7 @@ interface Task {
   row_key: string
   week_start: string
   assigned_to?: string
+  assignee_name?: string
   created_by: string
   status: string
   color?: string
@@ -126,14 +127,18 @@ function TaskChip({ task, profiles, onDelete, currentUserId }: {
   task: Task; profiles: Profile[]; onDelete: () => void; currentUserId: string
 }) {
   const assignee = profiles.find(p => p.id === task.assigned_to)
+  const extName = !assignee ? (task.assignee_name || '') : ''
+  const extInitials = extName.split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0, 2)
+  const badgeColor = assignee?.color || '#8a8a86'
   const isDone = task.status === 'fait'
   return (
     <div className={`${styles.chip} ${isDone ? styles.chipDone : ''}`}
       style={{ borderLeftColor: task.color || assignee?.color || '#0f6e56' }}>
       <span className={styles.chipTitle}>{task.title}</span>
-      {assignee && (
-        <span className={styles.chipAssignee} style={{ background: (assignee.color || '#0f6e56') + '22', color: assignee.color || '#0f6e56' }}>
-          {assignee.initials}
+      {(assignee || extName) && (
+        <span className={styles.chipAssignee} title={assignee?.full_name || extName}
+          style={{ background: badgeColor + '22', color: badgeColor }}>
+          {assignee?.initials || extInitials}
         </span>
       )}
       {(task.created_by === currentUserId || !task.assigned_to) && (
@@ -150,9 +155,22 @@ function TaskModal({ weekDate, rowKey, rowLabel, profiles, userId, onSave, onClo
   error?: string
 }) {
   const [form, setForm] = useState({
-    title: '', description: '', assigned_to: '', status: 'a_faire', color: ''
+    title: '', description: '', assigned_to: '', assignee_name: '', status: 'a_faire', color: ''
   })
   const { num, range } = fmtWeekHeader(weekDate)
+  const isExternal = form.assigned_to === '__external__'
+
+  const submit = () => {
+    if (!form.title.trim()) return
+    const payload: Omit<Task, 'id' | 'created_by'> = {
+      title: form.title, description: form.description, status: form.status, color: form.color,
+      row_key: rowKey, week_start: weekKey(weekDate),
+      assigned_to: isExternal ? undefined : (form.assigned_to || undefined),
+    }
+    // Only set assignee_name for external people (avoids referencing the column for member tasks)
+    if (isExternal && form.assignee_name.trim()) payload.assignee_name = form.assignee_name.trim()
+    onSave(payload)
+  }
 
   return (
     <div className={styles.modalOverlay} onClick={e => e.target === e.currentTarget && onClose()}>
@@ -170,7 +188,7 @@ function TaskModal({ weekDate, rowKey, rowLabel, profiles, userId, onSave, onClo
             <input autoFocus required value={form.title}
               onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
               placeholder="Décrivez la tâche…"
-              onKeyDown={e => { if (e.key === 'Enter' && form.title.trim()) onSave({ ...form, assigned_to: form.assigned_to || undefined, row_key: rowKey, week_start: weekKey(weekDate) }) }}
+              onKeyDown={e => { if (e.key === 'Enter') submit() }}
             />
           </div>
           <div className={styles.field}>
@@ -185,6 +203,7 @@ function TaskModal({ weekDate, rowKey, rowLabel, profiles, userId, onSave, onClo
               <select value={form.assigned_to} onChange={e => setForm(f => ({ ...f, assigned_to: e.target.value }))}>
                 <option value="">— Non assigné —</option>
                 {profiles.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
+                <option value="__external__">+ Autre (nom libre)…</option>
               </select>
             </div>
             <div className={styles.field}>
@@ -196,18 +215,21 @@ function TaskModal({ weekDate, rowKey, rowLabel, profiles, userId, onSave, onClo
               </select>
             </div>
           </div>
+          {isExternal && (
+            <div className={styles.field}>
+              <label>Nom de la personne</label>
+              <input autoFocus value={form.assignee_name}
+                onChange={e => setForm(f => ({ ...f, assignee_name: e.target.value }))}
+                placeholder="ex : Yannick" />
+            </div>
+          )}
         </div>
         {error && <div className={styles.modalError}><i className="ti ti-alert-circle" /> {error}</div>}
         <div className={styles.modalFooter}>
           <button onClick={onClose} className={styles.cancelBtn}>Annuler</button>
           <button
-            disabled={!form.title.trim()}
-            onClick={() => onSave({
-              ...form,
-              assigned_to: form.assigned_to || undefined,
-              row_key: rowKey,
-              week_start: weekKey(weekDate)
-            })}
+            disabled={!form.title.trim() || (isExternal && !form.assignee_name.trim())}
+            onClick={submit}
             className={styles.saveBtn}>
             Ajouter
           </button>
