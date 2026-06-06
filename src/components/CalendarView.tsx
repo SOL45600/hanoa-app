@@ -123,8 +123,8 @@ interface Props {
 }
 
 /* ─── TASK CHIP ──────────────────────────────────────────────── */
-function TaskChip({ task, profiles, onDelete, currentUserId }: {
-  task: Task; profiles: Profile[]; onDelete: () => void; currentUserId: string
+function TaskChip({ task, profiles, onDelete, onView, currentUserId }: {
+  task: Task; profiles: Profile[]; onDelete: () => void; onView: () => void; currentUserId: string
 }) {
   const assignee = profiles.find(p => p.id === task.assigned_to)
   const extName = !assignee ? (task.assignee_name || '') : ''
@@ -133,7 +133,8 @@ function TaskChip({ task, profiles, onDelete, currentUserId }: {
   const isDone = task.status === 'fait'
   return (
     <div className={`${styles.chip} ${isDone ? styles.chipDone : ''}`}
-      style={{ borderLeftColor: task.color || assignee?.color || '#0f6e56' }}>
+      onClick={e => { e.stopPropagation(); onView() }}
+      style={{ borderLeftColor: task.color || assignee?.color || '#0f6e56', cursor: 'pointer' }}>
       <span className={styles.chipTitle}>{task.title}</span>
       {(assignee || extName) && (
         <span className={styles.chipAssignee} title={assignee?.full_name || extName}
@@ -239,6 +240,61 @@ function TaskModal({ weekDate, rowKey, rowLabel, profiles, userId, onSave, onClo
   )
 }
 
+/* ─── TASK DETAIL MODAL (visualisation) ──────────────────────── */
+function TaskDetailModal({ task, profiles, onClose, onStatusChange, onDelete }: {
+  task: Task; profiles: Profile[]; onClose: () => void
+  onStatusChange: (id: string, status: string) => void; onDelete: (id: string) => void
+}) {
+  const assignee = profiles.find(p => p.id === task.assigned_to)
+  const assigneeName = assignee?.full_name || task.assignee_name
+  const rowLabel = PLANNING_ROWS.flatMap(g => g.rows).find(r => r.key === task.row_key)?.label || task.row_key
+  const wk = fmtWeekHeader(new Date(task.week_start))
+  return (
+    <div className={styles.modalOverlay} onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className={styles.modal}>
+        <div className={styles.modalHeader}>
+          <div>
+            <span className={styles.modalWeek}>{wk.num} · {wk.range}</span>
+            <h3>{rowLabel}</h3>
+          </div>
+          <button onClick={onClose} className={styles.modalClose}>✕</button>
+        </div>
+        <div className={styles.modalBody}>
+          <div className={styles.field}>
+            <label>Tâche</label>
+            <div style={{ fontSize: 15, fontWeight: 500 }}>{task.title}</div>
+          </div>
+          {task.description && (
+            <div className={styles.field}>
+              <label>Détails</label>
+              <div style={{ whiteSpace: 'pre-wrap', fontSize: 14, color: 'var(--text)' }}>{task.description}</div>
+            </div>
+          )}
+          <div className={styles.formRow}>
+            <div className={styles.field}>
+              <label>Assigné à</label>
+              <div style={{ fontSize: 14 }}>{assigneeName || '— Non assigné —'}</div>
+            </div>
+            <div className={styles.field}>
+              <label>Statut</label>
+              <select value={task.status} onChange={e => onStatusChange(task.id, e.target.value)}>
+                <option value="a_faire">À faire</option>
+                <option value="en_cours">En cours</option>
+                <option value="fait">Fait ✓</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div className={styles.modalFooter}>
+          <button onClick={() => { if (confirm('Supprimer cette tâche ?')) { onDelete(task.id); onClose() } }}
+            className={styles.cancelBtn} style={{ color: '#d85a30' }}>Supprimer</button>
+          <button onClick={onClose} className={styles.saveBtn}>Fermer</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /* ─── MAIN ───────────────────────────────────────────────────── */
 export default function CalendarView({ supabase, userId, profile, myOnly = false }: Props) {
   const [tasks, setTasks] = useState<Task[]>([])
@@ -248,6 +304,7 @@ export default function CalendarView({ supabase, userId, profile, myOnly = false
   const [startWeek, setStartWeek] = useState(() => getMondayOfWeek(new Date()))
   const [numWeeks] = useState(12)
   const [addingCell, setAddingCell] = useState<{ week: Date; rowKey: string; rowLabel: string } | null>(null)
+  const [viewingTask, setViewingTask] = useState<Task | null>(null)
   const [filterUser, setFilterUser] = useState<string>(myOnly ? userId : '')
   const [saveError, setSaveError] = useState('')
 
@@ -345,6 +402,12 @@ export default function CalendarView({ supabase, userId, profile, myOnly = false
   const deleteTask = async (id: string) => {
     await supabase.from('tasks').delete().eq('id', id)
     setTasks(ts => ts.filter(t => t.id !== id))
+  }
+
+  const updateTaskStatus = async (id: string, status: string) => {
+    await supabase.from('tasks').update({ status }).eq('id', id)
+    setTasks(ts => ts.map(t => t.id === id ? { ...t, status } : t))
+    setViewingTask(v => (v && v.id === id ? { ...v, status } : v))
   }
 
   const allProfiles = profiles
@@ -450,7 +513,7 @@ export default function CalendarView({ supabase, userId, profile, myOnly = false
                             onClick={() => setAddingCell({ week: w, rowKey: row.key, rowLabel: row.label })}>
                             {cellTasks.map(t => (
                               <TaskChip key={t.id} task={t} profiles={allProfiles}
-                                onDelete={() => deleteTask(t.id)} currentUserId={userId} />
+                                onDelete={() => deleteTask(t.id)} onView={() => setViewingTask(t)} currentUserId={userId} />
                             ))}
                             <div className={styles.cellAdd}>+</div>
                           </td>
@@ -474,6 +537,16 @@ export default function CalendarView({ supabase, userId, profile, myOnly = false
           onSave={addTask}
           onClose={() => { setAddingCell(null); setSaveError('') }}
           error={saveError}
+        />
+      )}
+
+      {viewingTask && (
+        <TaskDetailModal
+          task={viewingTask}
+          profiles={allProfiles}
+          onClose={() => setViewingTask(null)}
+          onStatusChange={updateTaskStatus}
+          onDelete={deleteTask}
         />
       )}
     </div>
