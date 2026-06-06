@@ -6,6 +6,7 @@ import { Profile } from '@/lib/types'
 
 const PARCELS = ['A', 'B1', 'B2', 'C', 'Verger entier']
 const OPERATORS = ['Nathalie', 'Benjamin', 'Peter']
+const CROPS = ['Noisette', 'Amande', 'Noix de pécan']
 const TYPES = [
   { key: 'fertilisation', label: 'Fertilisation' },
   { key: 'phyto', label: 'Traitement phyto' },
@@ -16,6 +17,7 @@ interface Product { id: string; name: string; type: string; dosage: string; amm?
 interface Intervention {
   id: string; date: string; parcel: string; type: string; product_name: string
   dosage: string; dar: number; surface?: string | null; operator?: string | null; notes?: string | null
+  target?: string | null; crop?: string | null; quantity_total?: string | null; amm?: string | null
 }
 
 const card: React.CSSProperties = { background: 'white', border: '0.5px solid var(--border)', borderRadius: 12, padding: 16, marginBottom: 14 }
@@ -39,6 +41,7 @@ export default function FertPhytoView({ supabase, userId, profile, sectionId }: 
   const [form, setForm] = useState({
     date: today, parcel: 'A', type: 'fertilisation', product_id: '',
     dosage: '', dar: '0', surface: '', operator: defaultOperator, notes: '',
+    crop: 'Noisette', target: '', quantity_total: '',
   })
 
   const load = async () => {
@@ -73,11 +76,13 @@ export default function FertPhytoView({ supabase, userId, profile, sectionId }: 
       product_name: selectedProduct.name, dosage: form.dosage || selectedProduct.dosage,
       dar: parseInt(form.dar) || 0, surface: form.surface || null,
       operator: form.operator || null, notes: form.notes || null,
+      crop: form.crop || null, target: form.target || null,
+      quantity_total: form.quantity_total || null, amm: selectedProduct.amm || null,
       section_id: sectionId, created_by: userId,
     }).select('*').single()
     if (error) { setErr(error.message); setSaving(false); return }
     setInterventions(xs => [data, ...xs])
-    setForm(f => ({ ...f, surface: '', notes: '' }))
+    setForm(f => ({ ...f, surface: '', notes: '', target: '', quantity_total: '' }))
     setSaving(false)
   }
 
@@ -88,8 +93,8 @@ export default function FertPhytoView({ supabase, userId, profile, sectionId }: 
   }
 
   const exportCsv = () => {
-    const headers = ['Date', 'Parcelle', 'Type', 'Produit', 'Dosage', 'DAR (j)', 'Surface', 'Opérateur', 'Notes']
-    const rows = interventions.map(i => [i.date, i.parcel, typeLabel(i.type), i.product_name, i.dosage, String(i.dar), i.surface || '', i.operator || '', i.notes || ''])
+    const headers = ['Date', 'Parcelle', 'Culture', 'Type', 'Produit', 'N° AMM', 'Cible', 'Dosage', 'Qté totale', 'DAR (j)', 'Surface', 'Opérateur', 'Notes']
+    const rows = interventions.map(i => [i.date, i.parcel, i.crop || '', typeLabel(i.type), i.product_name, i.amm || '', i.target || '', i.dosage, i.quantity_total || '', String(i.dar), i.surface || '', i.operator || '', i.notes || ''])
     const csv = [headers, ...rows].map(r => r.map(c => `"${(c || '').replace(/"/g, '""')}"`).join(',')).join('\n')
     const a = document.createElement('a')
     a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' }))
@@ -116,6 +121,12 @@ export default function FertPhytoView({ supabase, userId, profile, sectionId }: 
             </select>
           </div>
           <div>
+            <label style={label}>Culture</label>
+            <select style={input} value={form.crop} onChange={e => setField('crop', e.target.value)}>
+              {CROPS.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+          <div>
             <label style={label}>Type *</label>
             <select style={input} value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value, product_id: '', dosage: '' }))}>
               {TYPES.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
@@ -128,6 +139,12 @@ export default function FertPhytoView({ supabase, userId, profile, sectionId }: 
               {productsOfType.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
           </div>
+          {form.type === 'phyto' && (
+            <div>
+              <label style={label}>Cible</label>
+              <input style={input} value={form.target} onChange={e => setField('target', e.target.value)} placeholder="ravageur / maladie / adventice" />
+            </div>
+          )}
           <div>
             <label style={label}>Dosage</label>
             <input style={input} value={form.dosage} onChange={e => setField('dosage', e.target.value)} placeholder="ex : 2 L/ha" />
@@ -139,6 +156,10 @@ export default function FertPhytoView({ supabase, userId, profile, sectionId }: 
           <div>
             <label style={label}>Surface (optionnel)</label>
             <input style={input} value={form.surface} onChange={e => setField('surface', e.target.value)} placeholder="ex : 1,2 ha" />
+          </div>
+          <div>
+            <label style={label}>Quantité totale</label>
+            <input style={input} value={form.quantity_total} onChange={e => setField('quantity_total', e.target.value)} placeholder="ex : 12 kg / 30 L" />
           </div>
           <div>
             <label style={label}>Opérateur</label>
@@ -171,27 +192,26 @@ export default function FertPhytoView({ supabase, userId, profile, sectionId }: 
 
         {loading ? <p style={{ color: 'var(--muted)', fontSize: 13 }}>Chargement…</p> : (
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 700 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 1000 }}>
               <thead>
                 <tr style={{ textAlign: 'left', color: 'var(--muted)', fontSize: 12 }}>
-                  <th style={{ padding: '6px 8px' }}>Date</th>
-                  <th style={{ padding: '6px 8px' }}>Parcelle</th>
-                  <th style={{ padding: '6px 8px' }}>Type</th>
-                  <th style={{ padding: '6px 8px' }}>Produit</th>
-                  <th style={{ padding: '6px 8px' }}>Dosage</th>
-                  <th style={{ padding: '6px 8px' }}>DAR</th>
-                  <th style={{ padding: '6px 8px' }}>Opérateur</th>
-                  <th></th>
+                  {['Date', 'Parcelle', 'Culture', 'Type', 'Produit', 'N° AMM', 'Cible', 'Dosage', 'Qté totale', 'DAR', 'Opérateur', ''].map((h, k) => (
+                    <th key={k} style={{ padding: '6px 8px' }}>{h}</th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
                 {interventions.map(i => (
                   <tr key={i.id} style={{ borderTop: '0.5px solid var(--border)' }}>
-                    <td style={{ padding: '6px 8px' }}>{new Date(i.date).toLocaleDateString('fr-FR')}</td>
+                    <td style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>{new Date(i.date).toLocaleDateString('fr-FR')}</td>
                     <td style={{ padding: '6px 8px' }}>{i.parcel}</td>
+                    <td style={{ padding: '6px 8px' }}>{i.crop}</td>
                     <td style={{ padding: '6px 8px' }}>{typeLabel(i.type)}</td>
                     <td style={{ padding: '6px 8px', fontWeight: 500 }}>{i.product_name}</td>
+                    <td style={{ padding: '6px 8px' }}>{i.amm}</td>
+                    <td style={{ padding: '6px 8px' }}>{i.target}</td>
                     <td style={{ padding: '6px 8px' }}>{i.dosage}</td>
+                    <td style={{ padding: '6px 8px' }}>{i.quantity_total}</td>
                     <td style={{ padding: '6px 8px' }}>{i.dar} j</td>
                     <td style={{ padding: '6px 8px' }}>{i.operator}</td>
                     <td style={{ padding: '6px 8px', textAlign: 'right' }}>
@@ -199,7 +219,7 @@ export default function FertPhytoView({ supabase, userId, profile, sectionId }: 
                     </td>
                   </tr>
                 ))}
-                {interventions.length === 0 && <tr><td colSpan={8} style={{ padding: 16, textAlign: 'center', color: 'var(--muted)' }}>Aucune intervention enregistrée</td></tr>}
+                {interventions.length === 0 && <tr><td colSpan={12} style={{ padding: 16, textAlign: 'center', color: 'var(--muted)' }}>Aucune intervention enregistrée</td></tr>}
               </tbody>
             </table>
           </div>
