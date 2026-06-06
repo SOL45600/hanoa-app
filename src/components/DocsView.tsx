@@ -58,6 +58,8 @@ function CommentThread({ comments, currentProfile, onAdd }: { comments: Comment[
 
 export default function DocsView({ sectionId, userId, profile, supabase }: Props) {
   const [docs, setDocs] = useState<Document[]>([])
+  const [currentFolder, setCurrentFolder] = useState<string | null>(null)
+  const [localFolders, setLocalFolders] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [openComments, setOpenComments] = useState<Record<string, boolean>>({})
@@ -85,6 +87,8 @@ export default function DocsView({ sectionId, userId, profile, supabase }: Props
 
   useEffect(() => {
     setLoading(true)
+    setCurrentFolder(null)
+    setLocalFolders([])
     supabase
       .from('documents')
       .select('*')
@@ -92,6 +96,22 @@ export default function DocsView({ sectionId, userId, profile, supabase }: Props
       .order('created_at', { ascending: false })
       .then(({ data }) => { setDocs(data || []); setLoading(false) })
   }, [sectionId])
+
+  const allFolders = Array.from(
+    new Set([...(docs.map(d => d.folder).filter(Boolean) as string[]), ...localFolders])
+  ).sort((a, b) => a.localeCompare(b))
+  const visibleDocs = currentFolder === null ? docs : docs.filter(d => (d.folder || null) === currentFolder)
+
+  const newFolder = () => {
+    const name = prompt('Nom du nouveau dossier :')?.trim()
+    if (!name) return
+    setLocalFolders(f => Array.from(new Set([...f, name])))
+    setCurrentFolder(name)
+  }
+  const moveDoc = async (docId: string, folder: string | null) => {
+    await supabase.from('documents').update({ folder }).eq('id', docId)
+    setDocs(ds => ds.map(d => d.id === docId ? { ...d, folder } : d))
+  }
 
   const uploadFiles = async (files: File[]) => {
     if (!files.length) return
@@ -109,6 +129,7 @@ export default function DocsView({ sectionId, userId, profile, supabase }: Props
             storage_path: path,
             mime_type: file.type,
             size_bytes: file.size,
+            folder: currentFolder,
           })
           .select('*')
           .single()
@@ -175,14 +196,32 @@ export default function DocsView({ sectionId, userId, profile, supabase }: Props
         accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.mp4,.mov,.txt" />
       <button onClick={() => fileRef.current?.click()} className={styles.uploadBtn} disabled={uploading}>
         <i className={`ti ${uploading ? 'ti-loader' : 'ti-upload'}`} style={{ fontSize: 18 }} />
-        {uploading ? 'Envoi en cours…' : 'Ajouter ou glisser-déposer un document ici'}
+        {uploading ? 'Envoi en cours…' : (currentFolder ? `Ajouter dans « ${currentFolder} » ou glisser-déposer` : 'Ajouter ou glisser-déposer un document ici')}
       </button>
 
+      {/* Dossiers */}
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', margin: '10px 0 4px' }}>
+        {([null, ...allFolders] as (string | null)[]).map(f => {
+          const active = currentFolder === f
+          return (
+            <button key={f ?? '__all'} onClick={() => setCurrentFolder(f)}
+              style={{ padding: '5px 12px', borderRadius: 16, fontSize: 13, border: '0.5px solid var(--border-mid)',
+                background: active ? 'var(--green-light)' : 'white', color: active ? 'var(--green)' : 'var(--text)' }}>
+              {f === null ? 'Tous' : <><i className="ti ti-folder" style={{ fontSize: 13, marginRight: 4 }} />{f}</>}
+            </button>
+          )
+        })}
+        <button onClick={newFolder}
+          style={{ padding: '5px 12px', borderRadius: 16, fontSize: 13, border: '0.5px dashed var(--border-mid)', background: 'white', color: 'var(--green)' }}>
+          <i className="ti ti-folder-plus" style={{ fontSize: 13, marginRight: 4 }} />Nouveau dossier
+        </button>
+      </div>
+
       {loading && <p className={styles.empty}>Chargement…</p>}
-      {!loading && docs.length === 0 && (
+      {!loading && visibleDocs.length === 0 && (
         <div className={styles.empty}>
           <i className="ti ti-files" />
-          <span>Aucun document dans cette rubrique</span>
+          <span>{currentFolder ? `Aucun document dans « ${currentFolder} »` : 'Aucun document dans cette rubrique'}</span>
         </div>
       )}
 
@@ -196,7 +235,7 @@ export default function DocsView({ sectionId, userId, profile, supabase }: Props
         />
       )}
 
-      {docs.map(doc => {
+      {visibleDocs.map(doc => {
         const ext = doc.name.split('.').pop()?.toLowerCase() || ''
         const cfg = FILE_ICONS[ext] || { icon: 'ti-file', color: '#5f5e5a' }
         return (
@@ -216,6 +255,12 @@ export default function DocsView({ sectionId, userId, profile, supabase }: Props
                   <button onClick={() => getDownloadUrl(doc.storage_path)} className={styles.actionBtn} title="Télécharger">
                     <i className="ti ti-download" style={{ fontSize: 15 }} />
                   </button>
+                  <select value={doc.folder || ''} onChange={e => moveDoc(doc.id, e.target.value || null)}
+                    title="Déplacer vers un dossier"
+                    style={{ fontSize: 11, border: '0.5px solid var(--border-mid)', borderRadius: 6, padding: '2px 4px', maxWidth: 120, color: 'var(--muted)' }}>
+                    <option value="">Sans dossier</option>
+                    {allFolders.map(f => <option key={f} value={f}>{f}</option>)}
+                  </select>
                   {doc.author_id === userId && (
                     <button className={`${styles.actionBtn} ${styles.deleteBtn}`} title="Supprimer"
                       onClick={async () => {

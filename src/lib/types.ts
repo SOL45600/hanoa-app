@@ -44,6 +44,7 @@ export interface Document {
   mime_type: string
   size_bytes: number
   created_at: string
+  folder?: string | null
   profiles?: Profile
   comments?: Comment[]
 }

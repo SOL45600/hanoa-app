@@ -5,6 +5,7 @@ import { SupabaseClient } from '@supabase/supabase-js'
 import { Profile } from '@/lib/types'
 
 const PARCELS = ['A', 'B1', 'B2', 'C', 'Verger entier']
+const OPERATORS = ['Nathalie', 'Benjamin', 'Peter']
 const TYPES = [
   { key: 'fertilisation', label: 'Fertilisation' },
   { key: 'phyto', label: 'Traitement phyto' },
@@ -27,6 +28,8 @@ export default function FertPhytoView({ supabase, userId, profile, sectionId }: 
 }) {
   const isAdmin = profile.role === 'admin'
   const today = new Date().toISOString().slice(0, 10)
+  const firstName = (profile.full_name || '').split(' ')[0]
+  const defaultOperator = OPERATORS.includes(firstName) ? firstName : 'Peter'
   const [products, setProducts] = useState<Product[]>([])
   const [interventions, setInterventions] = useState<Intervention[]>([])
   const [loading, setLoading] = useState(true)
@@ -35,7 +38,7 @@ export default function FertPhytoView({ supabase, userId, profile, sectionId }: 
   const [showProducts, setShowProducts] = useState(false)
   const [form, setForm] = useState({
     date: today, parcel: 'A', type: 'fertilisation', product_id: '',
-    dosage: '', dar: '0', surface: '', operator: profile.full_name, notes: '',
+    dosage: '', dar: '0', surface: '', operator: defaultOperator, notes: '',
   })
 
   const load = async () => {
@@ -139,7 +142,9 @@ export default function FertPhytoView({ supabase, userId, profile, sectionId }: 
           </div>
           <div>
             <label style={label}>Opérateur</label>
-            <input style={input} value={form.operator} onChange={e => setField('operator', e.target.value)} />
+            <select style={input} value={form.operator} onChange={e => setField('operator', e.target.value)}>
+              {OPERATORS.map(o => <option key={o} value={o}>{o}</option>)}
+            </select>
           </div>
         </div>
         <div style={{ marginTop: 12 }}>
