@@ -54,6 +54,19 @@ const COMMANDES_ROW = 'commandes'
 
 const ROW_KEYS = PLANNING_ROWS.flatMap(g => g.rows.map(r => r.key))
 
+// Mappe une ligne du planning vers une activité du suivi du temps (TempsView)
+const ROWKEY_ACTIVITY: Record<string, string> = {
+  vergers_irrigation: 'Irrigation',
+  vergers_ferti_phyto: 'Ferti / phyto',
+  vergers_entretien: 'Entretien matériel',
+  vergers_divers: 'Divers',
+  transfo_stabilisation: 'Transformation',
+  transfo_laboratoire: 'Transformation',
+  transfo_conditionnement: 'Conditionnement / tri',
+  divers: 'Divers',
+  commandes: 'Commandes',
+}
+
 /* ─── UTILS ─────────────────────────────────────────────────── */
 function getMondayOfWeek(date: Date): Date {
   const d = new Date(date)
@@ -241,14 +254,20 @@ function TaskModal({ weekDate, rowKey, rowLabel, profiles, userId, onSave, onClo
 }
 
 /* ─── TASK DETAIL MODAL (visualisation) ──────────────────────── */
-function TaskDetailModal({ task, profiles, onClose, onStatusChange, onDelete }: {
+function TaskDetailModal({ task, profiles, onClose, onStatusChange, onDelete, onLogTime }: {
   task: Task; profiles: Profile[]; onClose: () => void
   onStatusChange: (id: string, status: string) => void; onDelete: (id: string) => void
+  onLogTime: (task: Task, hours: string, parcel: string) => Promise<boolean>
 }) {
   const assignee = profiles.find(p => p.id === task.assigned_to)
   const assigneeName = assignee?.full_name || task.assignee_name
   const rowLabel = PLANNING_ROWS.flatMap(g => g.rows).find(r => r.key === task.row_key)?.label || task.row_key
   const wk = fmtWeekHeader(new Date(task.week_start))
+  const [logH, setLogH] = useState('')
+  const [logP, setLogP] = useState('')
+  const [logged, setLogged] = useState(false)
+  const [logErr, setLogErr] = useState('')
+  const miniInput: React.CSSProperties = { padding: '7px 9px', border: '0.5px solid var(--border-mid)', borderRadius: 7, fontSize: 13, background: 'white' }
   return (
     <div className={styles.modalOverlay} onClick={e => e.target === e.currentTarget && onClose()}>
       <div className={styles.modal}>
@@ -283,6 +302,22 @@ function TaskDetailModal({ task, profiles, onClose, onStatusChange, onDelete }: 
                 <option value="fait">Fait ✓</option>
               </select>
             </div>
+          </div>
+          <div className={styles.field}>
+            <label>Pointer du temps (→ Temps)</label>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+              <input style={{ ...miniInput, width: 90 }} value={logH} onChange={e => setLogH(e.target.value)} placeholder="heures" />
+              <input style={{ ...miniInput, width: 110 }} value={logP} onChange={e => setLogP(e.target.value)} placeholder="parcelle" />
+              <button type="button" className={styles.saveBtn} style={{ padding: '7px 12px', fontSize: 13 }}
+                onClick={async () => {
+                  setLogErr('')
+                  const ok = await onLogTime(task, logH, logP)
+                  if (ok) { setLogged(true); setLogH(''); setLogP('') }
+                  else setLogErr('Heures invalides, ou table Temps non créée.')
+                }}>Pointer</button>
+              {logged && <span style={{ fontSize: 12, color: 'var(--green)' }}>✓ enregistré</span>}
+            </div>
+            {logErr && <span style={{ fontSize: 12, color: '#d85a30' }}>{logErr}</span>}
           </div>
         </div>
         <div className={styles.modalFooter}>
@@ -408,6 +443,21 @@ export default function CalendarView({ supabase, userId, profile, myOnly = false
     await supabase.from('tasks').update({ status }).eq('id', id)
     setTasks(ts => ts.map(t => t.id === id ? { ...t, status } : t))
     setViewingTask(v => (v && v.id === id ? { ...v, status } : v))
+  }
+
+  // Pointer du temps depuis une tâche -> crée une entrée dans time_entries
+  const logTimeForTask = async (task: Task, hours: string, parcel: string): Promise<boolean> => {
+    const h = parseFloat(String(hours).replace(',', '.'))
+    if (!h || h <= 0) return false
+    const assignee = profiles.find(p => p.id === task.assigned_to)
+    const operator = (assignee?.full_name?.split(' ')[0]) || task.assignee_name || (profile.full_name || '').split(' ')[0]
+    const { error } = await supabase.from('time_entries').insert({
+      date: new Date().toISOString().slice(0, 10),
+      operator, parcel: parcel || null,
+      activity: ROWKEY_ACTIVITY[task.row_key] || 'Divers',
+      hours: h, task_id: task.id, note: task.title, created_by: userId,
+    })
+    return !error
   }
 
   const allProfiles = profiles
@@ -547,6 +597,7 @@ export default function CalendarView({ supabase, userId, profile, myOnly = false
           onClose={() => setViewingTask(null)}
           onStatusChange={updateTaskStatus}
           onDelete={deleteTask}
+          onLogTime={logTimeForTask}
         />
       )}
     </div>
