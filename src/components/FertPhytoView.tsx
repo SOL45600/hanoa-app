@@ -4,9 +4,34 @@ import { useState, useEffect } from 'react'
 import { SupabaseClient } from '@supabase/supabase-js'
 import { Profile } from '@/lib/types'
 
-const PARCELS = ['A', 'B1', 'B2', 'C', 'Verger entier']
+const PARCELS = ['A', 'B1', 'B2', 'C', 'D1', 'D2', 'E', 'Verger entier']
 const OPERATORS = ['Nathalie', 'Benjamin', 'Peter']
-const CROPS = ['Noisette', 'Amande', 'Noix de pécan']
+const CROPS = ['Noisette', 'Amande', 'Noix de pécan', 'Yuzu']
+
+// Parcelle -> culture / surface (ha) / nb d'arbres (pour les produits dosés/arbre)
+const PARCEL_CULTURE: Record<string, string> = {
+  A: 'Noisette', B1: 'Noisette', B2: 'Noisette', C: 'Noisette',
+  D1: 'Yuzu', D2: 'Amande', E: 'Noix de pécan',
+}
+const PARCEL_SURFACE: Record<string, number> = { A: 2.5, B1: 5.5, B2: 6, C: 8.5, D1: 0.7, D2: 2, E: 1 }
+const PARCEL_TREES: Record<string, number> = { D1: 400, D2: 1400, E: 260 }
+
+const frNum = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/\.?0+$/, '')).replace('.', ',')
+
+// Calcule la quantité totale à partir du dosage (/ha ou /arbre) et de la parcelle.
+// Renvoie '' si non calculable (plage de valeurs, dose /L, parcelle sans surface/arbres…).
+function computeQty(dosage: string, parcel: string): string {
+  if (!dosage) return ''
+  if (/\d\s*[–-]\s*\d/.test(dosage)) return '' // plage "4–5" -> saisie manuelle
+  const m = dosage.toLowerCase().replace(',', '.').match(/(\d+(?:\.\d+)?)\s*(kg|g|l|cl|ml)?\s*\/\s*(ha|arbre)/)
+  if (!m) return ''
+  const val = parseFloat(m[1]); let unit = m[2] || ''; const basis = m[3]
+  let total: number
+  if (basis === 'ha') { const s = PARCEL_SURFACE[parcel]; if (s == null) return ''; total = val * s }
+  else { const t = PARCEL_TREES[parcel]; if (t == null) return ''; total = val * t }
+  if (unit === 'g' && total >= 1000) { total = total / 1000; unit = 'kg' }
+  return `${frNum(total)} ${unit}`.trim()
+}
 const TYPES = [
   { key: 'fertilisation', label: 'Fertilisation' },
   { key: 'phyto', label: 'Traitement phyto' },
@@ -40,9 +65,21 @@ export default function FertPhytoView({ supabase, userId, profile, sectionId }: 
   const [showProducts, setShowProducts] = useState(false)
   const [form, setForm] = useState({
     date: today, parcel: 'A', type: 'fertilisation', product_id: '',
-    dosage: '', dar: '0', surface: '', operator: defaultOperator, notes: '',
-    crop: 'Noisette', target: '', quantity_total: '',
+    dosage: '', dar: '0', surface: `${frNum(PARCEL_SURFACE['A'])} ha`, operator: defaultOperator, notes: '',
+    crop: PARCEL_CULTURE['A'], target: '', quantity_total: '',
   })
+
+  // Parcelle -> auto culture + surface (+ reset produit si la culture change) + recalcul quantité.
+  const onParcelChange = (parcel: string) => {
+    setForm(f => {
+      const crop = PARCEL_CULTURE[parcel] || f.crop
+      const cropChanged = crop !== f.crop
+      const surface = PARCEL_SURFACE[parcel] != null ? `${frNum(PARCEL_SURFACE[parcel])} ha` : f.surface
+      const dosage = cropChanged ? '' : f.dosage
+      const product_id = cropChanged ? '' : f.product_id
+      return { ...f, parcel, crop, surface, dosage, product_id, quantity_total: computeQty(dosage, parcel) }
+    })
+  }
 
   const load = async () => {
     setLoading(true)
@@ -67,7 +104,10 @@ export default function FertPhytoView({ supabase, userId, profile, sectionId }: 
 
   const onSelectProduct = (id: string) => {
     const p = products.find(x => x.id === id)
-    setForm(f => ({ ...f, product_id: id, dosage: p?.dosage || f.dosage }))
+    setForm(f => {
+      const dosage = p?.dosage || f.dosage
+      return { ...f, product_id: id, dosage, quantity_total: computeQty(dosage, f.parcel) }
+    })
   }
 
   const submit = async (e: React.FormEvent) => {
@@ -119,8 +159,8 @@ export default function FertPhytoView({ supabase, userId, profile, sectionId }: 
           </div>
           <div>
             <label style={label}>Parcelle *</label>
-            <select style={input} value={form.parcel} onChange={e => setField('parcel', e.target.value)}>
-              {PARCELS.map(p => <option key={p} value={p}>{p}</option>)}
+            <select style={input} value={form.parcel} onChange={e => onParcelChange(e.target.value)}>
+              {PARCELS.map(p => <option key={p} value={p}>{p}{PARCEL_CULTURE[p] ? ` — ${PARCEL_CULTURE[p]}` : ''}</option>)}
             </select>
           </div>
           <div>
@@ -150,7 +190,9 @@ export default function FertPhytoView({ supabase, userId, profile, sectionId }: 
           )}
           <div>
             <label style={label}>Dosage</label>
-            <input style={input} value={form.dosage} onChange={e => setField('dosage', e.target.value)} placeholder="ex : 2 L/ha" />
+            <input style={input} value={form.dosage}
+              onChange={e => setForm(f => ({ ...f, dosage: e.target.value, quantity_total: computeQty(e.target.value, f.parcel) }))}
+              placeholder="ex : 2 L/ha" />
           </div>
           <div>
             <label style={label}>DAR (jours)</label>
