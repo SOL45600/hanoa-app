@@ -2,19 +2,25 @@
 import { SectionTree, Profile } from '@/lib/types'
 import styles from './TopBar.module.css'
 
+type View = 'feed' | 'docs' | 'registre'
+
 interface Props {
   section: SectionTree | null
-  view: 'feed' | 'docs'
-  setView: (v: 'feed' | 'docs') => void
+  view: View
+  setView: (v: View) => void
   profile: Profile
   sidebarOpen: boolean
   onToggleSidebar: () => void
   onSearch: () => void
   isSearching: boolean
   onBack?: () => void // back to parent section on mobile
+  showRegistre?: boolean // Fert-Phyto: add a "Registre" tab
 }
 
-export default function TopBar({ section, view, setView, profile, sidebarOpen, onToggleSidebar, onSearch, isSearching, onBack }: Props) {
+export default function TopBar({ section, view, setView, profile, sidebarOpen, onToggleSidebar, onSearch, isSearching, onBack, showRegistre }: Props) {
+  const tabs: [View, string, string][] = showRegistre
+    ? [['registre', 'ti-clipboard-list', 'Registre'], ['feed', 'ti-messages', 'Feed'], ['docs', 'ti-files', 'Documents']]
+    : [['feed', 'ti-messages', 'Feed'], ['docs', 'ti-files', 'Documents']]
   return (
     <div className={styles.bar}>
       {!sidebarOpen && (
@@ -35,7 +41,7 @@ export default function TopBar({ section, view, setView, profile, sidebarOpen, o
       </button>
       {section && !isSearching && (
         <div className={styles.viewToggle}>
-          {([['feed', 'ti-messages', 'Feed'], ['docs', 'ti-files', 'Documents']] as const).map(([k, icon, label]) => (
+          {tabs.map(([k, icon, label]) => (
             <button key={k} onClick={() => setView(k)}
               className={`${styles.viewBtn} ${view === k ? styles.viewActive : ''}`}>
               <i className={`ti ${icon}`} style={{ fontSize: 13 }} />

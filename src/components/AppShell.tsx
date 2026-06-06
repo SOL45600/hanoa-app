@@ -16,6 +16,7 @@ import CalendarView from './CalendarView'
 import FinanceView from './FinanceView'
 import LotsView from './lots/LotsView'
 import StockView from './lots/StockView'
+import FertPhytoView from './FertPhytoView'
 import Modal from './Modal'
 import styles from './AppShell.module.css'
 
@@ -29,7 +30,7 @@ export default function AppShell({ user, profile, initialSections }: Props) {
   const supabase = createClient()
   const [sections, setSections] = useState<Section[]>(initialSections)
   const [selected, setSelected] = useState<SectionTree | null>(null)
-  const [view, setView] = useState<'feed' | 'docs'>('feed')
+  const [view, setView] = useState<'feed' | 'docs' | 'registre'>('feed')
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [showAddSection, setShowAddSection] = useState(false)
   const [showUsers, setShowUsers] = useState(false)
@@ -77,6 +78,12 @@ export default function AppShell({ user, profile, initialSections }: Props) {
       .subscribe()
     return () => { supabase.removeChannel(channel) }
   }, [sections.length])
+
+  // Default view per section: Fert-Phyto opens on its "Registre" tab.
+  useEffect(() => {
+    if (!selected) return
+    setView(selected.label.toLowerCase().includes('fert') ? 'registre' : 'feed')
+  }, [selected?.id])
 
   const markSectionRead = async (sectionId: string) => {
     setUnreadCounts(prev => { const n = { ...prev }; delete n[sectionId]; return n })
@@ -187,6 +194,7 @@ export default function AppShell({ user, profile, initialSections }: Props) {
           onToggleSidebar={() => setSidebarOpen(o => !o)}
           onSearch={() => { setShowSearch(s => !s); setShowUsers(false) }}
           isSearching={showSearch}
+          showRegistre={!!selected && selected.label.toLowerCase().includes('fert')}
           onBack={() => {
             if (selected?.parent_id) {
               const parent = sections.find(s => s.id === selected.parent_id)
@@ -235,6 +243,9 @@ export default function AppShell({ user, profile, initialSections }: Props) {
           {!showUsers && selected && selected.label.toLowerCase().includes('irrigation') && <WeenatView />}
           {!showUsers && selected && selected.label.toLowerCase() === 'commandes' && (
             <CommandesView sectionId={selected.id} userId={user.id} profile={profile} supabase={supabase} />
+          )}
+          {!showUsers && selected && selected.label.toLowerCase().includes('fert') && view === 'registre' && (
+            <FertPhytoView supabase={supabase} userId={user.id} profile={profile} sectionId={selected.id} />
           )}
           {!showUsers && !showSearch && selected &&
             selected.label.toLowerCase() !== 'planning' &&
