@@ -13,7 +13,7 @@ const TYPES = [
 ]
 const typeLabel = (k: string) => TYPES.find(t => t.key === k)?.label || k
 
-interface Product { id: string; name: string; type: string; dosage: string; amm?: string | null; active?: boolean }
+interface Product { id: string; name: string; type: string; dosage: string; amm?: string | null; active?: boolean; crops?: string[] | null }
 interface Intervention {
   id: string; date: string; parcel: string; type: string; product_name: string
   dosage: string; dar: number; surface?: string | null; operator?: string | null; notes?: string | null
@@ -59,7 +59,10 @@ export default function FertPhytoView({ supabase, userId, profile, sectionId }: 
   useEffect(() => { load() }, [])
 
   const setField = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }))
-  const productsOfType = products.filter(p => p.type === form.type && p.active !== false)
+  const productsOfType = products.filter(p =>
+    p.type === form.type && p.active !== false &&
+    (!p.crops || p.crops.length === 0 || p.crops.includes(form.crop))
+  )
   const selectedProduct = products.find(p => p.id === form.product_id)
 
   const onSelectProduct = (id: string) => {
@@ -122,7 +125,7 @@ export default function FertPhytoView({ supabase, userId, profile, sectionId }: 
           </div>
           <div>
             <label style={label}>Culture</label>
-            <select style={input} value={form.crop} onChange={e => setField('crop', e.target.value)}>
+            <select style={input} value={form.crop} onChange={e => setForm(f => ({ ...f, crop: e.target.value, product_id: '', dosage: '' }))}>
               {CROPS.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
@@ -233,13 +236,16 @@ export default function FertPhytoView({ supabase, userId, profile, sectionId }: 
 function ProductsManager({ products, supabase, isAdmin, onChange }: {
   products: Product[]; supabase: SupabaseClient; isAdmin: boolean; onChange: () => void
 }) {
-  const [np, setNp] = useState({ name: '', type: 'fertilisation', dosage: '', amm: '' })
+  const [np, setNp] = useState<{ name: string; type: string; dosage: string; amm: string; crops: string[] }>(
+    { name: '', type: 'fertilisation', dosage: '', amm: '', crops: [...CROPS] }
+  )
   const add = async () => {
     if (!np.name.trim()) return
     await supabase.from('fert_phyto_products').insert({
       name: np.name.trim(), type: np.type, dosage: np.dosage.trim(), amm: np.amm.trim() || null, active: true,
+      crops: np.crops.length ? np.crops : null,
     })
-    setNp({ name: '', type: 'fertilisation', dosage: '', amm: '' })
+    setNp({ name: '', type: 'fertilisation', dosage: '', amm: '', crops: [...CROPS] })
     onChange()
   }
   const remove = async (id: string) => {
@@ -260,13 +266,26 @@ function ProductsManager({ products, supabase, isAdmin, onChange }: {
           </select>
           <input style={{ ...input, width: 110 }} placeholder="Dosage" value={np.dosage} onChange={e => setNp(p => ({ ...p, dosage: e.target.value }))} />
           <input style={{ ...input, width: 120 }} placeholder="N° AMM (phyto)" value={np.amm} onChange={e => setNp(p => ({ ...p, amm: e.target.value }))} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
+            <span style={{ color: 'var(--muted)' }}>Cultures :</span>
+            {CROPS.map(c => {
+              const on = np.crops.includes(c)
+              return (
+                <label key={c} style={{ display: 'flex', alignItems: 'center', gap: 3, cursor: 'pointer' }}>
+                  <input type="checkbox" checked={on}
+                    onChange={() => setNp(p => ({ ...p, crops: on ? p.crops.filter(x => x !== c) : [...p.crops, c] }))} />
+                  {c}
+                </label>
+              )
+            })}
+          </div>
           <button onClick={add} style={{ ...btnGreen, padding: '8px 14px', fontSize: 13 }}>Ajouter</button>
         </div>
       )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         {products.map(p => (
           <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, background: 'white', borderRadius: 6, padding: '5px 8px' }}>
-            <span style={{ flex: 1 }}><strong>{p.name}</strong> · {typeLabel(p.type)} · {p.dosage}{p.amm ? ` · AMM ${p.amm}` : ''}</span>
+            <span style={{ flex: 1 }}><strong>{p.name}</strong> · {typeLabel(p.type)} · {p.dosage}{p.amm ? ` · AMM ${p.amm}` : ''}{p.crops?.length ? ` · ${p.crops.join(', ')}` : ' · toutes cultures'}</span>
             {isAdmin && <button onClick={() => remove(p.id)} style={{ color: '#d85a30' }}><i className="ti ti-trash" /></button>}
           </div>
         ))}
