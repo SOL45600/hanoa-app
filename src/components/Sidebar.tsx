@@ -68,7 +68,7 @@ function SectionNode({ node, depth, selected, onSelect, onDelete, onRename, onMo
           ? <i className={`ti ${expanded ? 'ti-chevron-down' : 'ti-chevron-right'}`} style={{ fontSize: 12, color: '#888', flexShrink: 0 }} />
           : <span style={{ width: 12, flexShrink: 0 }} />
         }
-        <i className={`ti ${node.icon}`} style={{ fontSize: 15, flexShrink: 0, color: isSel ? 'var(--green)' : '#888' }} />
+        <i className={`ti ${node.label.toLowerCase() === 'temps' ? 'ti-clock' : node.icon}`} style={{ fontSize: 15, flexShrink: 0, color: isSel ? 'var(--green)' : '#888' }} />
         {editing
           ? <input ref={inputRef} value={editVal} onChange={e => setEditVal(e.target.value)}
               className={styles.editInput}

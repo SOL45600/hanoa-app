@@ -7,9 +7,15 @@ export const VARIETIES: Record<string, string> = {
 }
 
 export const PRODUCERS: Record<string, { label: string; parcels?: string[] }> = {
-  CRE: { label: 'Crenier (SOL)', parcels: ['A', 'B1', 'B2', 'C'] },
+  CRE: { label: 'Crenier (SOL)', parcels: ['A1', 'A2', 'B1', 'B2', 'C1', 'C2', 'C3'] },
   JPH: { label: 'JP Hautin' },
   F3S: { label: 'Ferme des 3 soleils' },
+}
+
+// Parcelle -> variété (auto-remplissage). À compléter (B1, B2, C1, C2, C3).
+export const PARCEL_VARIETY: Record<string, string> = {
+  A1: 'PAU', // Pauetet
+  A2: 'COR', // Corabel
 }
 
 export const CALIBERS = ['<11mm', '11-13mm', '13-15mm', '>15mm']

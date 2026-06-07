@@ -69,7 +69,7 @@ export default function FertPhytoView({ supabase, userId, profile, sectionId }: 
   const [form, setForm] = useState({
     date: today, parcel: 'A', type: 'fertilisation', product_id: '',
     dosage: '', dar: '0', surface: `${frNum(PARCEL_SURFACE['A'])} ha`, operator: defaultOperator, notes: '',
-    crop: PARCEL_CULTURE['A'], target: '', quantity_total: '',
+    crop: PARCEL_CULTURE['A'], target: '', quantity_total: '', hours: '',
   })
 
   // Parcelle -> auto culture + surface (+ reset produit si la culture change) + recalcul quantité.
@@ -128,7 +128,19 @@ export default function FertPhytoView({ supabase, userId, profile, sectionId }: 
     }).select('*').single()
     if (error) { setErr(error.message); setSaving(false); return }
     setInterventions(xs => [data, ...xs])
-    setForm(f => ({ ...f, surface: '', notes: '', target: '', quantity_total: '' }))
+    // Connexion au module Temps : crée un pointage si "temps passé" est renseigné
+    const h = parseFloat((form.hours || '').replace(',', '.'))
+    if (h > 0) {
+      try {
+        await supabase.from('time_entries').insert({
+          date: form.date, operator: form.operator,
+          parcel: form.parcel === '—' ? null : form.parcel,
+          activity: 'Ferti / phyto', hours: h,
+          note: selectedProduct.name, created_by: userId,
+        })
+      } catch { /* best-effort */ }
+    }
+    setForm(f => ({ ...f, surface: '', notes: '', target: '', quantity_total: '', hours: '' }))
     setSaving(false)
   }
 
@@ -213,6 +225,10 @@ export default function FertPhytoView({ supabase, userId, profile, sectionId }: 
           <div>
             <label style={label}>Quantité totale</label>
             <input style={input} value={form.quantity_total} onChange={e => setField('quantity_total', e.target.value)} placeholder="ex : 12 kg / 30 L" />
+          </div>
+          <div>
+            <label style={label}>Temps passé (h) → Temps</label>
+            <input style={input} value={form.hours} onChange={e => setField('hours', e.target.value)} placeholder="ex : 2,5" />
           </div>
           <div>
             <label style={label}>Opérateur</label>

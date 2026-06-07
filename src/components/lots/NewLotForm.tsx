@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { SupabaseClient } from '@supabase/supabase-js'
 import { Lot } from './LotsView'
-import { VARIETIES, PRODUCERS, generateLotNumber } from './config'
+import { VARIETIES, PRODUCERS, PARCEL_VARIETY, generateLotNumber } from './config'
 import styles from './Lots.module.css'
 
 interface Props {
@@ -18,7 +18,7 @@ export default function NewLotForm({ supabase, userId, onCreated, onCancel }: Pr
     harvest_date: today,
     reception_date: today,
     producer_code: 'CRE',
-    parcel: 'A',
+    parcel: 'A1',
     variety: 'PAU',
     humidity_pct: '',
     notes: '',
@@ -86,9 +86,12 @@ export default function NewLotForm({ supabase, userId, onCreated, onCancel }: Pr
           {hasParcels && (
             <div className={styles.field}>
               <label>Parcelle *</label>
-              <select value={form.parcel} onChange={e => set('parcel', e.target.value)}>
+              <select value={form.parcel} onChange={e => {
+                const parcel = e.target.value
+                setForm(f => ({ ...f, parcel, variety: PARCEL_VARIETY[parcel] || f.variety }))
+              }}>
                 {PRODUCERS[form.producer_code].parcels!.map(p => (
-                  <option key={p} value={p}>{p}</option>
+                  <option key={p} value={p}>{p}{PARCEL_VARIETY[p] ? ` — ${VARIETIES[PARCEL_VARIETY[p]] || PARCEL_VARIETY[p]}` : ''}</option>
                 ))}
               </select>
             </div>

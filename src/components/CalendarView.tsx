@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { SupabaseClient } from '@supabase/supabase-js'
 import { Profile } from '@/lib/types'
+import { FERTI_PLAN } from '@/lib/fertiPlan'
 import styles from './CalendarView.module.css'
 
 // Weather icons from Weenat data
@@ -54,18 +55,7 @@ const COMMANDES_ROW = 'commandes'
 
 const ROW_KEYS = PLANNING_ROWS.flatMap(g => g.rows.map(r => r.key))
 
-// Plan ferti-phyto mutualisé (amandiers D2 / pacaniers E / yuzu D1) — test #5.
-// month: 0=janv. row: ligne du planning. Génère des tâches récurrentes annuelles.
-const FERTI_PLAN: { month: number; row: string; title: string }[] = [
-  { month: 5, row: 'vergers_ferti_phyto', title: '1er foliaire Zn+B — toutes parcelles (Actiflow Zn680 + Solubor DF)' },
-  { month: 5, row: 'vergers_ferti_phyto', title: 'Magprill 500–600 kg/ha — E (pacaniers) puis irriguer' },
-  { month: 5, row: 'vergers_ferti_phyto', title: 'Patentkali — D2 (~250) + D1 (~200 kg/ha)' },
-  { month: 6, row: 'vergers_ferti_phyto', title: '2e foliaire Zn+B — toutes parcelles + analyses foliaires' },
-  { month: 7, row: 'vergers_ferti_phyto', title: 'Appoint Mg foliaire (sels d\'Epsom) si jaunissement — toutes parcelles' },
-  { month: 8, row: 'vergers_ferti_phyto', title: 'Apports d\'automne : Phosphore + matière organique — D2 + D1' },
-  { month: 8, row: 'vergers_ferti_phyto', title: 'Patentkali 2e moitié + D1 protection gel' },
-  { month: 8, row: 'vergers_ferti_phyto', title: 'Magprill 2e passage (selon analyse) — E (pacaniers)' },
-]
+// FERTI_PLAN est désormais partagé via src/lib/fertiPlan.ts (planning + cron)
 
 // Mappe une ligne du planning vers une activité du suivi du temps (TempsView)
 const ROWKEY_ACTIVITY: Record<string, string> = {

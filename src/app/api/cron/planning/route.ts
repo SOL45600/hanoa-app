@@ -1,21 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { FERTI_PLAN } from '@/lib/fertiPlan'
 
 const RESEND_KEY = process.env.RESEND_API_KEY
 const ALERT_EMAIL = process.env.ALERT_EMAIL || 'benjamin@s-o-l.fr'
-
-// Calendrier ferti-phyto mutualisé (doit rester aligné avec CalendarView.FERTI_PLAN)
-const FERTI_PLAN: { month: number; row: string; title: string }[] = [
-  { month: 5, row: 'vergers_ferti_phyto', title: '1er foliaire Zn+B — toutes parcelles (Actiflow Zn680 + Solubor DF)' },
-  { month: 5, row: 'vergers_ferti_phyto', title: 'Magprill 500–600 kg/ha — E (pacaniers) puis irriguer' },
-  { month: 5, row: 'vergers_ferti_phyto', title: 'Patentkali — D2 (~250) + D1 (~200 kg/ha)' },
-  { month: 6, row: 'vergers_ferti_phyto', title: '2e foliaire Zn+B — toutes parcelles + analyses foliaires' },
-  { month: 7, row: 'vergers_ferti_phyto', title: 'Appoint Mg foliaire (sels d\'Epsom) si jaunissement — toutes parcelles' },
-  { month: 8, row: 'vergers_ferti_phyto', title: 'Apports d\'automne : Phosphore + matière organique — D2 + D1' },
-  { month: 8, row: 'vergers_ferti_phyto', title: 'Patentkali 2e moitié + D1 protection gel' },
-  { month: 8, row: 'vergers_ferti_phyto', title: 'Magprill 2e passage (selon analyse) — E (pacaniers)' },
-]
 
 function mondayOf(date: Date): Date {
   const d = new Date(date); const day = d.getDay()

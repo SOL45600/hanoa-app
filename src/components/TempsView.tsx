@@ -123,8 +123,9 @@ export default function TempsView({ supabase, userId, profile }: {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
           <div><label style={label}>Date *</label><input style={input} type="date" required value={form.date} onChange={e => setField('date', e.target.value)} /></div>
           <div><label style={label}>Opérateur *</label>
-            <input style={input} list="op-list" value={form.operator} onChange={e => setField('operator', e.target.value)} />
-            <datalist id="op-list">{OPERATORS.map(o => <option key={o} value={o} />)}</datalist>
+            <select style={input} value={form.operator} onChange={e => setField('operator', e.target.value)}>
+              {OPERATORS.map(o => <option key={o} value={o}>{o}</option>)}
+            </select>
           </div>
           <div><label style={label}>Activité *</label>
             <select style={input} value={form.activity} onChange={e => setField('activity', e.target.value)}>
