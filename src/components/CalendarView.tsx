@@ -54,6 +54,19 @@ const COMMANDES_ROW = 'commandes'
 
 const ROW_KEYS = PLANNING_ROWS.flatMap(g => g.rows.map(r => r.key))
 
+// Plan ferti-phyto mutualisé (amandiers D2 / pacaniers E / yuzu D1) — test #5.
+// month: 0=janv. row: ligne du planning. Génère des tâches récurrentes annuelles.
+const FERTI_PLAN: { month: number; row: string; title: string }[] = [
+  { month: 5, row: 'vergers_ferti_phyto', title: '1er foliaire Zn+B — toutes parcelles (Actiflow Zn680 + Solubor DF)' },
+  { month: 5, row: 'vergers_ferti_phyto', title: 'Magprill 500–600 kg/ha — E (pacaniers) puis irriguer' },
+  { month: 5, row: 'vergers_ferti_phyto', title: 'Patentkali — D2 (~250) + D1 (~200 kg/ha)' },
+  { month: 6, row: 'vergers_ferti_phyto', title: '2e foliaire Zn+B — toutes parcelles + analyses foliaires' },
+  { month: 7, row: 'vergers_ferti_phyto', title: 'Appoint Mg foliaire (sels d\'Epsom) si jaunissement — toutes parcelles' },
+  { month: 8, row: 'vergers_ferti_phyto', title: 'Apports d\'automne : Phosphore + matière organique — D2 + D1' },
+  { month: 8, row: 'vergers_ferti_phyto', title: 'Patentkali 2e moitié + D1 protection gel' },
+  { month: 8, row: 'vergers_ferti_phyto', title: 'Magprill 2e passage (selon analyse) — E (pacaniers)' },
+]
+
 // Mappe une ligne du planning vers une activité du suivi du temps (TempsView)
 const ROWKEY_ACTIVITY: Record<string, string> = {
   vergers_irrigation: 'Irrigation',
@@ -460,6 +473,42 @@ export default function CalendarView({ supabase, userId, profile, myOnly = false
     return !error
   }
 
+  // #5 — Génère les passages ferti-phyto du calendrier mutualisé dans le planning (année en cours)
+  const generateFertiPlan = async () => {
+    const year = new Date().getFullYear()
+    const toInsert: any[] = []
+    for (const item of FERTI_PLAN) {
+      const wk = weekKey(getMondayOfWeek(new Date(year, item.month, 10)))
+      if (!tasks.some(t => t.row_key === item.row && t.week_start === wk && t.title === item.title)) {
+        toInsert.push({
+          title: item.title, row_key: item.row, week_start: wk, status: 'a_faire',
+          created_by: userId, due_date: wk, assignee_name: 'Toute l\'équipe',
+        })
+      }
+    }
+    if (!toInsert.length) { alert(`Plan ferti-phyto ${year} déjà présent (rien à ajouter).`); return }
+    const { data, error } = await supabase.from('tasks').insert(toInsert).select('*')
+    if (error) {
+      alert('Erreur : ' + error.message + (error.message.includes('assignee_name')
+        ? '\n\n→ Lance dans Supabase : alter table tasks add column if not exists assignee_name text;' : ''))
+      return
+    }
+    setTasks(ts => [...ts, ...(data || [])])
+    alert(`${data?.length || 0} passage(s) ferti-phyto ajouté(s) au planning ${year}.`)
+  }
+
+  // #5 — Reporte les tâches non faites en retard vers la semaine en cours
+  const carryOverOverdue = async () => {
+    const thisMonday = weekKey(getMondayOfWeek(new Date()))
+    const overdue = tasks.filter(t => t.status !== 'fait' && t.week_start < thisMonday)
+    if (!overdue.length) { alert('Aucune tâche en retard à reporter.'); return }
+    if (!confirm(`${overdue.length} tâche(s) non faite(s) en retard seront déplacées à la semaine en cours. Continuer ?`)) return
+    await Promise.all(overdue.map(t =>
+      supabase.from('tasks').update({ week_start: thisMonday, due_date: thisMonday }).eq('id', t.id)))
+    setTasks(ts => ts.map(t => (t.status !== 'fait' && t.week_start < thisMonday) ? { ...t, week_start: thisMonday } : t))
+    alert(`${overdue.length} tâche(s) reportée(s) à la semaine en cours.`)
+  }
+
   const allProfiles = profiles
 
   return (
@@ -481,6 +530,16 @@ export default function CalendarView({ supabase, userId, profile, myOnly = false
           </span>
         </div>
         <div className={styles.headerRight}>
+          {profile.role === 'admin' && (
+            <>
+              <button className={styles.todayBtn} onClick={generateFertiPlan} title="Générer les passages ferti-phyto du calendrier dans le planning">
+                <i className="ti ti-calendar-plus" /> Plan ferti-phyto
+              </button>
+              <button className={styles.todayBtn} onClick={carryOverOverdue} title="Reporter les tâches non faites en retard à la semaine en cours">
+                <i className="ti ti-arrow-forward-up" /> Reporter en retard
+              </button>
+            </>
+          )}
           <select className={styles.filterSelect}
             value={filterUser}
             onChange={e => setFilterUser(e.target.value)}>
