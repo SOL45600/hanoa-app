@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
   const toInsert: any[] = []
   for (const item of FERTI_PLAN) {
     const wk = wkKey(mondayOf(new Date(year, item.month, 10)))
-    if (!all.some((t: any) => t.row_key === item.row && t.week_start === wk && t.title === item.title)) {
+    if (!all.some((t: any) => t.row_key === item.row && t.title === item.title && (t.week_start || '').slice(0, 4) === String(year))) {
       toInsert.push({ title: item.title, row_key: item.row, week_start: wk, status: 'a_faire', due_date: wk, assignee_name: 'Toute l\'équipe', created_by: createdBy })
     }
   }

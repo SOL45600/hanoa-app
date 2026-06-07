@@ -493,7 +493,7 @@ export default function CalendarView({ supabase, userId, profile, myOnly = false
     const toInsert: any[] = []
     for (const item of FERTI_PLAN) {
       const wk = weekKey(getMondayOfWeek(new Date(year, item.month, 10)))
-      if (!tasks.some(t => t.row_key === item.row && t.week_start === wk && t.title === item.title)) {
+      if (!tasks.some(t => t.row_key === item.row && t.title === item.title && (t.week_start || '').slice(0, 4) === String(year))) {
         toInsert.push({
           title: item.title, row_key: item.row, week_start: wk, status: 'a_faire',
           created_by: userId, due_date: wk, assignee_name: 'Toute l\'équipe',
