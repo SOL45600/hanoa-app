@@ -32,6 +32,7 @@ function StageFormModal({ stageType, existingStage, lot, supabase, userId, profi
     weight_in_kg: existingStage?.weight_in_kg?.toString() || '',
     weight_out_kg: existingStage?.weight_out_kg?.toString() || '',
     volume_out_l: (existingStage as any)?.volume_out_l?.toString() || '',
+    weight_out_eclats_kg: (existingStage as any)?.weight_out_eclats_kg?.toString() || '',
     temperature_c: existingStage?.temperature_c?.toString() || '',
     duration_min: existingStage?.duration_min?.toString() || '',
     humidity_pct_out: existingStage?.humidity_pct_out?.toString() || '',
@@ -63,6 +64,7 @@ function StageFormModal({ stageType, existingStage, lot, supabase, userId, profi
     if (form.weight_in_kg) data.weight_in_kg = parseFloat(form.weight_in_kg)
     if (form.weight_out_kg) data.weight_out_kg = parseFloat(form.weight_out_kg)
     if (form.volume_out_l) data.volume_out_l = parseFloat(form.volume_out_l)
+    if (form.weight_out_eclats_kg) data.weight_out_eclats_kg = parseFloat(form.weight_out_eclats_kg)
     if (form.temperature_c) data.temperature_c = parseFloat(form.temperature_c)
     if (form.duration_min) data.duration_min = parseInt(form.duration_min)
     if (form.humidity_pct_out) data.humidity_pct_out = parseFloat(form.humidity_pct_out)
@@ -163,7 +165,25 @@ function StageFormModal({ stageType, existingStage, lot, supabase, userId, profi
               </div>
             )}
 
-            {['cassage', 'torreflaction', 'presse', 'broyage'].includes(stageType) && (<>
+            {stageType === 'cassage' && (<>
+              <div className={styles.field}>
+                <label>Poids entrée (kg)</label>
+                <input type="number" step="0.1" value={form.weight_in_kg}
+                  onChange={e => set('weight_in_kg', e.target.value)} />
+              </div>
+              <div className={styles.field}>
+                <label>Sortie — Noisettes entières (kg)</label>
+                <input type="number" step="0.1" value={form.weight_out_kg}
+                  onChange={e => set('weight_out_kg', e.target.value)} />
+              </div>
+              <div className={styles.field}>
+                <label>Sortie — Éclats (kg)</label>
+                <input type="number" step="0.1" value={form.weight_out_eclats_kg}
+                  onChange={e => set('weight_out_eclats_kg', e.target.value)} />
+              </div>
+            </>)}
+
+            {['torreflaction', 'presse', 'broyage'].includes(stageType) && (<>
               <div className={styles.field}>
                 <label>Poids entrée (kg)</label>
                 <input type="number" step="0.1" value={form.weight_in_kg}
@@ -436,7 +456,8 @@ export default function LotDetail({ lot, supabase, userId, profile, onBack, onRe
                       <div className={styles.wsData}>
                         <span>{fmtDate(stage!.stage_date)}</span>
                         {stage!.weight_in_kg && <span>· Entrée : {stage!.weight_in_kg} kg</span>}
-                        {stage!.weight_out_kg && <span>· Sortie : {stage!.weight_out_kg} kg</span>}
+                        {stage!.weight_out_kg && <span>· {stageType === 'cassage' ? 'Entières' : 'Sortie'} : {stage!.weight_out_kg} kg</span>}
+                        {stageType === 'cassage' && (stage as any)?.weight_out_eclats_kg != null && <span>· Éclats : {(stage as any).weight_out_eclats_kg} kg</span>}
                         {stage!.weight_in_kg && stage!.weight_out_kg && (
                           <span>· Rdt : {((stage!.weight_out_kg / stage!.weight_in_kg) * 100).toFixed(0)}%</span>
                         )}
@@ -476,6 +497,37 @@ export default function LotDetail({ lot, supabase, userId, profile, onBack, onRe
           </div>
         </div>
       )}
+
+      {/* Répartition par transformation */}
+      {(lot.finished_lots || []).length > 0 && (() => {
+        const TYPE_LABELS: Record<string, string> = { D: 'Décortiquées', T: 'Torréfiées', H: 'Pressées (huile)', P: 'Broyées (poudre)' }
+        const TYPE_COLORS: Record<string, string> = { D: '#6b4fbb', T: '#d85a30', H: '#C9A227', P: '#888' }
+        const agg: Record<string, { units: number; kg: number }> = {}
+        ;(lot.finished_lots || []).forEach((fl: FinishedLot) => {
+          const k = fl.product_type
+          if (!agg[k]) agg[k] = { units: 0, kg: 0 }
+          agg[k].units += fl.units_produced || 0
+          agg[k].kg += fl.total_weight_kg || 0
+        })
+        const keys = Object.keys(agg)
+        if (!keys.length) return null
+        return (
+          <div className={styles.section}>
+            <p className={styles.sectionLabel}>Répartition par transformation</p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+              {keys.map(k => (
+                <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, background: (TYPE_COLORS[k] || '#888') + '15', border: `1px solid ${(TYPE_COLORS[k] || '#888')}33` }}>
+                  <i className={`ti ${PRODUCT_TYPES[k]?.icon || 'ti-package'}`} style={{ color: TYPE_COLORS[k] || '#888', fontSize: 16 }} />
+                  <span style={{ fontSize: 13 }}>
+                    <strong>{TYPE_LABELS[k] || PRODUCT_TYPES[k]?.label || k}</strong>
+                    {' — '}{agg[k].units} unité{agg[k].units > 1 ? 's' : ''}{agg[k].kg ? ` · ${agg[k].kg.toFixed(1)} kg` : ''}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Finished products */}
       {(lot.finished_lots || []).length > 0 && (
