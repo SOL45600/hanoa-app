@@ -24,6 +24,8 @@ const PLANNING_ROWS = [
     rows: [
       { key: 'vergers_irrigation',   label: 'Irrigation' },
       { key: 'vergers_ferti_phyto',  label: 'Ferti-phyto' },
+      { key: 'vergers_taille',       label: 'Taille' },
+      { key: 'vergers_broyage',      label: 'Broyage' },
       { key: 'vergers_entretien',    label: 'Entretien' },
       { key: 'vergers_divers',       label: 'Divers' },
     ]
@@ -61,6 +63,8 @@ const ROW_KEYS = PLANNING_ROWS.flatMap(g => g.rows.map(r => r.key))
 const ROWKEY_ACTIVITY: Record<string, string> = {
   vergers_irrigation: 'Irrigation',
   vergers_ferti_phyto: 'Ferti / phyto',
+  vergers_taille: 'Taille / drageons / capricorne',
+  vergers_broyage: 'Broyage',
   vergers_entretien: 'Entretien matériel',
   vergers_divers: 'Divers',
   transfo_stabilisation: 'Transformation',
@@ -538,8 +542,8 @@ export default function CalendarView({ supabase, userId, profile, myOnly = false
         <div className={styles.headerRight}>
           {profile.role === 'admin' && (
             <>
-              <button className={styles.todayBtn} onClick={generateFertiPlan} title="Générer les passages ferti-phyto du calendrier dans le planning">
-                <i className="ti ti-calendar-plus" /> Plan ferti-phyto
+              <button className={styles.todayBtn} onClick={generateFertiPlan} title="Générer les passages du calendrier (ferti-phyto, taille, broyage) dans le planning">
+                <i className="ti ti-calendar-plus" /> Générer le plan annuel
               </button>
               <button className={styles.todayBtn} onClick={carryOverOverdue} title="Reporter les tâches non faites en retard à la semaine en cours">
                 <i className="ti ti-arrow-forward-up" /> Reporter en retard

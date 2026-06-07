@@ -176,7 +176,7 @@ export default function FertPhytoView({ supabase, userId, profile, sectionId }: 
         {showCalendar && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10, marginTop: 12 }}>
             {MONTH_NAMES.map((mn, mi) => {
-              const items = FERTI_PLAN.filter(i => i.month === mi)
+              const items = FERTI_PLAN.filter(i => i.month === mi && i.row === 'vergers_ferti_phyto')
               if (!items.length) return null
               return (
                 <div key={mi} style={{ border: '0.5px solid var(--border)', borderRadius: 10, padding: '10px 12px' }}>

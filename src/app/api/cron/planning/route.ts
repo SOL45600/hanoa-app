@@ -63,9 +63,9 @@ export async function GET(request: NextRequest) {
         body: JSON.stringify({
           from: 'Projet SOL Alertes <alertes@s-o-l.fr>',
           to: [ALERT_EMAIL],
-          subject: `Ferti-phyto — interventions de ${monthName}`,
+          subject: `Vergers — interventions de ${monthName}`,
           html: `<div style="font-family:Georgia,serif;max-width:560px;margin:0 auto">
-            <h2 style="color:#0f6e56">Interventions ferti-phyto — ${monthName} ${year}</h2>
+            <h2 style="color:#0f6e56">Interventions du verger — ${monthName} ${year}</h2>
             <ul>${monthItems.map(i => `<li>${i.title}</li>`).join('')}</ul>
             <p style="font-size:13px;color:#888">Retrouvez-les dans le Planning. Tâches non faites reportées automatiquement.</p>
           </div>`,
