@@ -453,9 +453,23 @@ export default function CalendarView({ supabase, userId, profile, myOnly = false
   }
 
   const updateTaskStatus = async (id: string, status: string) => {
+    const prev = tasks.find(x => x.id === id)
     await supabase.from('tasks').update({ status }).eq('id', id)
     setTasks(ts => ts.map(t => t.id === id ? { ...t, status } : t))
     setViewingTask(v => (v && v.id === id ? { ...v, status } : v))
+    // Auto-registre BIO : une tâche ferti-phyto marquée "Fait" crée une entrée dans le registre
+    if (status === 'fait' && prev && prev.status !== 'fait' && prev.row_key.includes('ferti')) {
+      const assignee = profiles.find(p => p.id === prev.assigned_to)
+      const op = assignee?.full_name?.split(' ')[0] || prev.assignee_name || null
+      const isPhyto = /(kaolin|bb rsr|bouillie|curatio|champ flo|calciblanc)/i.test(prev.title)
+      try {
+        await supabase.from('bio_interventions').insert({
+          date: new Date().toISOString().slice(0, 10),
+          activity: 'Ferti / phyto', type: isPhyto ? 'phyto' : 'fertilisation',
+          product_name: prev.title, operator: op, note: 'Auto depuis le planning', created_by: userId,
+        })
+      } catch { /* best-effort */ }
+    }
   }
 
   // Pointer du temps depuis une tâche -> crée une entrée dans time_entries

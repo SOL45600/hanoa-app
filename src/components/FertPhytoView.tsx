@@ -40,7 +40,8 @@ const TYPES = [
 ]
 const typeLabel = (k: string) => TYPES.find(t => t.key === k)?.label || k
 
-interface Product { id: string; name: string; type: string; dosage: string; amm?: string | null; active?: boolean; crops?: string[] | null }
+interface Product { id: string; name: string; type: string; dosage: string; amm?: string | null; active?: boolean; crops?: string[] | null; base?: string | null }
+const DOSE_BASES = ['à l\'ha', 'par arbre', 'par cuve 1000 L', 'par cuve 500 L', 'manuel']
 interface Intervention {
   id: string; date: string; parcel: string; type: string; product_name: string
   dosage: string; dar: number; surface?: string | null; operator?: string | null; notes?: string | null
@@ -186,7 +187,7 @@ export default function FertPhytoView({ supabase, userId, profile, sectionId }: 
             <label style={label}>Produit *</label>
             <select style={input} value={form.product_id} onChange={e => onSelectProduct(e.target.value)}>
               <option value="">— Choisir —</option>
-              {productsOfType.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              {productsOfType.map(p => <option key={p.id} value={p.id}>{p.name}{p.base ? ` · ${p.base}` : ''}</option>)}
             </select>
           </div>
           {form.type === 'phyto' && (
@@ -285,16 +286,16 @@ export default function FertPhytoView({ supabase, userId, profile, sectionId }: 
 function ProductsManager({ products, supabase, isAdmin, onChange }: {
   products: Product[]; supabase: SupabaseClient; isAdmin: boolean; onChange: () => void
 }) {
-  const [np, setNp] = useState<{ name: string; type: string; dosage: string; amm: string; crops: string[] }>(
-    { name: '', type: 'fertilisation', dosage: '', amm: '', crops: [...CROPS] }
+  const [np, setNp] = useState<{ name: string; type: string; dosage: string; amm: string; base: string; crops: string[] }>(
+    { name: '', type: 'fertilisation', dosage: '', amm: '', base: 'à l\'ha', crops: [...CROPS] }
   )
   const add = async () => {
     if (!np.name.trim()) return
     await supabase.from('fert_phyto_products').insert({
       name: np.name.trim(), type: np.type, dosage: np.dosage.trim(), amm: np.amm.trim() || null, active: true,
-      crops: np.crops.length ? np.crops : null,
+      base: np.base, crops: np.crops.length ? np.crops : null,
     })
-    setNp({ name: '', type: 'fertilisation', dosage: '', amm: '', crops: [...CROPS] })
+    setNp({ name: '', type: 'fertilisation', dosage: '', amm: '', base: 'à l\'ha', crops: [...CROPS] })
     onChange()
   }
   const remove = async (id: string) => {
@@ -315,6 +316,9 @@ function ProductsManager({ products, supabase, isAdmin, onChange }: {
           </select>
           <input style={{ ...input, width: 110 }} placeholder="Dosage" value={np.dosage} onChange={e => setNp(p => ({ ...p, dosage: e.target.value }))} />
           <input style={{ ...input, width: 120 }} placeholder="N° AMM (phyto)" value={np.amm} onChange={e => setNp(p => ({ ...p, amm: e.target.value }))} />
+          <select style={{ ...input, width: 150 }} value={np.base} onChange={e => setNp(p => ({ ...p, base: e.target.value }))} title="Base de dosage">
+            {DOSE_BASES.map(b => <option key={b} value={b}>{b}</option>)}
+          </select>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
             <span style={{ color: 'var(--muted)' }}>Cultures :</span>
             {CROPS.map(c => {
@@ -334,7 +338,7 @@ function ProductsManager({ products, supabase, isAdmin, onChange }: {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         {products.map(p => (
           <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, background: 'white', borderRadius: 6, padding: '5px 8px' }}>
-            <span style={{ flex: 1 }}><strong>{p.name}</strong> · {typeLabel(p.type)} · {p.dosage}{p.amm ? ` · AMM ${p.amm}` : ''}{p.crops?.length ? ` · ${p.crops.join(', ')}` : ' · toutes cultures'}</span>
+            <span style={{ flex: 1 }}><strong>{p.name}</strong> · {typeLabel(p.type)} · {p.dosage}{p.base ? ` (${p.base})` : ''}{p.amm ? ` · AMM ${p.amm}` : ''}{p.crops?.length ? ` · ${p.crops.join(', ')}` : ' · toutes cultures'}</span>
             {isAdmin && <button onClick={() => remove(p.id)} style={{ color: '#d85a30' }}><i className="ti ti-trash" /></button>}
           </div>
         ))}
