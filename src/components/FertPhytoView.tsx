@@ -3,7 +3,9 @@
 import { useState, useEffect } from 'react'
 import { SupabaseClient } from '@supabase/supabase-js'
 import { Profile } from '@/lib/types'
+import { FERTI_PLAN } from '@/lib/fertiPlan'
 
+const MONTH_NAMES = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
 const PARCELS = ['A', 'B1', 'B2', 'C', 'D1', 'D2', 'E', 'Verger entier']
 const OPERATORS = ['Nathalie', 'Benjamin', 'Peter']
 const CROPS = ['Noisette', 'Amande', 'Noix de pécan', 'Yuzu']
@@ -66,6 +68,7 @@ export default function FertPhytoView({ supabase, userId, profile, sectionId }: 
   const [err, setErr] = useState('')
   const [saving, setSaving] = useState(false)
   const [showProducts, setShowProducts] = useState(false)
+  const [showCalendar, setShowCalendar] = useState(true)
   const [form, setForm] = useState({
     date: today, parcel: 'A', type: 'fertilisation', product_id: '',
     dosage: '', dar: '0', surface: `${frNum(PARCEL_SURFACE['A'])} ha`, operator: defaultOperator, notes: '',
@@ -163,6 +166,30 @@ export default function FertPhytoView({ supabase, userId, profile, sectionId }: 
   return (
     <div style={{ maxWidth: 1000, margin: '0 auto' }}>
       {err && <div style={{ ...card, background: '#faece7', color: '#d85a30', fontSize: 13 }}>{err}</div>}
+
+      {/* Calendrier prévisionnel mois par mois (vue d'ensemble, lecture seule) */}
+      <div style={card}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }} onClick={() => setShowCalendar(s => !s)}>
+          <h3 style={{ fontSize: 15, fontWeight: 500, margin: 0 }}>Calendrier prévisionnel des passages</h3>
+          <i className={`ti ${showCalendar ? 'ti-chevron-up' : 'ti-chevron-down'}`} style={{ color: 'var(--muted)' }} />
+        </div>
+        {showCalendar && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10, marginTop: 12 }}>
+            {MONTH_NAMES.map((mn, mi) => {
+              const items = FERTI_PLAN.filter(i => i.month === mi)
+              if (!items.length) return null
+              return (
+                <div key={mi} style={{ border: '0.5px solid var(--border)', borderRadius: 10, padding: '10px 12px' }}>
+                  <div style={{ fontWeight: 600, color: 'var(--green)', marginBottom: 6, fontSize: 13 }}>{mn}</div>
+                  <ul style={{ margin: 0, paddingLeft: 16, fontSize: 12, color: 'var(--text)' }}>
+                    {items.map((i, k) => <li key={k} style={{ marginBottom: 4 }}>{i.title}</li>)}
+                  </ul>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
 
       {/* ── Formulaire de saisie ── */}
       <form onSubmit={submit} style={card}>
