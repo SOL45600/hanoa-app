@@ -97,7 +97,9 @@ function addWeeks(date: Date, n: number): Date {
 }
 
 function weekKey(date: Date): string {
-  return date.toISOString().slice(0, 10)
+  // Local date parts (pas toISOString) pour éviter le décalage UTC du lundi
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${date.getFullYear()}-${p(date.getMonth() + 1)}-${p(date.getDate())}`
 }
 
 function fmtWeekHeader(date: Date): { num: string; range: string } {

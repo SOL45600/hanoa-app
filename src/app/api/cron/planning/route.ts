@@ -22,7 +22,7 @@ function mondayOf(date: Date): Date {
   d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day)); d.setHours(0, 0, 0, 0)
   return d
 }
-const wkKey = (d: Date) => d.toISOString().slice(0, 10)
+const wkKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
 export async function GET(request: NextRequest) {
   const secret = process.env.CRON_SECRET_ALERT_WEENAT
