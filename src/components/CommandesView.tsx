@@ -471,9 +471,18 @@ function NewOrderForm({ sectionId, userId, supabase, onCreated, onCancel, editOr
                     const m = fmt.match(/^(\d+)\s*(kg|g|l|cl|ml)/)
                     if (m) { qty = m[1]; unit = m[2] }
 
+                    // Fruit (case de gauche) déduit du lot
+                    const nm = (fl.product_name || '').toLowerCase()
+                    const lnu = (fl.lot_number || '').toUpperCase()
+                    let fruit = 'Noisettes'
+                    if (nm.includes('amande') || lnu.startsWith('AMA')) fruit = 'Amandes'
+                    else if (nm.includes('pécan') || nm.includes('pecan') || lnu.startsWith('PEC')) fruit = 'Noix de pécan'
+                    else if (nm.includes('huile')) fruit = 'Huile de noisette'
+                    else if (nm.includes('poudre')) fruit = 'Poudre'
+
                     setLines(ls => ls.map((l, j) => j !== i ? l : {
                       ...l,
-                      product: PRODUCT_NAMES[fl.product_type] || fl.product_name,
+                      product: PRODUCTS.includes(fruit) ? fruit : (PRODUCT_NAMES[fl.product_type] || fl.product_name),
                       variety: fl.variety ? (VARIETY_NAMES[fl.variety] || fl.variety) : l.variety,
                       quantity: qty,
                       unit,

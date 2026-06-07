@@ -15,6 +15,8 @@ const PARCEL_CULTURE: Record<string, string> = {
 }
 const PARCEL_SURFACE: Record<string, number> = { A: 2.5, B1: 5.5, B2: 6, C: 8.5, D1: 0.7, D2: 2, E: 1 }
 const PARCEL_TREES: Record<string, number> = { D1: 400, D2: 1400, E: 260 }
+// Culture -> parcelle unique (mono-parcelle). La noisette a plusieurs parcelles -> pas d'auto.
+const CULTURE_PARCEL: Record<string, string> = { Amande: 'D2', 'Noix de pécan': 'E', Yuzu: 'D1' }
 
 const frNum = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/\.?0+$/, '')).replace('.', ',')
 
@@ -165,7 +167,12 @@ export default function FertPhytoView({ supabase, userId, profile, sectionId }: 
           </div>
           <div>
             <label style={label}>Culture</label>
-            <select style={input} value={form.crop} onChange={e => setForm(f => ({ ...f, crop: e.target.value, product_id: '', dosage: '' }))}>
+            <select style={input} value={form.crop} onChange={e => setForm(f => {
+              const crop = e.target.value
+              const parcel = CULTURE_PARCEL[crop] || f.parcel
+              const surface = PARCEL_SURFACE[parcel] != null ? `${frNum(PARCEL_SURFACE[parcel])} ha` : f.surface
+              return { ...f, crop, parcel, surface, product_id: '', dosage: '', quantity_total: '' }
+            })}>
               {CROPS.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>

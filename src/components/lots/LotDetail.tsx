@@ -228,6 +228,22 @@ function ConditioningModal({ lot, supabase, onSaved, onClose }: {
   })
   const [saving, setSaving] = useState(false)
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }))
+  // Poids total auto = (valeur du format) × (nombre d'unités), converti en kg/L
+  const parseFmt = (fmt: string): number | null => {
+    const m = fmt.toLowerCase().match(/^([\d.,]+)\s*(kg|g|l|cl|ml)/)
+    if (!m) return null
+    let v = parseFloat(m[1].replace(',', '.')); const u = m[2]
+    if (u === 'g') v /= 1000
+    if (u === 'cl') v /= 100
+    if (u === 'ml') v /= 1000
+    return v
+  }
+  const computeWeight = (fmt: string, unitsStr: string) => {
+    const per = parseFmt(fmt); const n = parseInt(unitsStr) || 0
+    return (per && n) ? String(Math.round(per * n * 100) / 100) : ''
+  }
+  const setUnits = (v: string) => setForm(f => ({ ...f, units_produced: v, total_weight_kg: computeWeight(f.format, v) || f.total_weight_kg }))
+  const setFmt = (v: string) => setForm(f => ({ ...f, format: v, total_weight_kg: computeWeight(v, f.units_produced) || f.total_weight_kg }))
   const product = PRODUCT_TYPES[productCode]
   const finishedLotNumber = generateFinishedLotNumber(lot.lot_number, productCode)
 
@@ -262,7 +278,7 @@ function ConditioningModal({ lot, supabase, onSaved, onClose }: {
             {Object.entries(PRODUCT_TYPES).map(([code, pt]) => (
               <button key={code} type="button"
                 className={`${styles.productTypeBtn} ${productCode === code ? styles.productTypeBtnActive : ''}`}
-                onClick={() => { setProductCode(code); set('format', pt.formats[0]) }}>
+                onClick={() => { setProductCode(code); setFmt(pt.formats[0]) }}>
                 <span className={styles.productCode}>{code}</span>
                 <span style={{ fontSize: 12 }}>{pt.label}</span>
               </button>
@@ -271,14 +287,14 @@ function ConditioningModal({ lot, supabase, onSaved, onClose }: {
           <div className={styles.formGrid}>
             <div className={styles.field}>
               <label>Format *</label>
-              <select value={form.format} onChange={e => set('format', e.target.value)}>
+              <select value={form.format} onChange={e => setFmt(e.target.value)}>
                 {product.formats.map(f => <option key={f} value={f}>{f}</option>)}
               </select>
             </div>
             <div className={styles.field}>
               <label>Nombre d'unités *</label>
               <input type="number" required min="1" value={form.units_produced}
-                onChange={e => set('units_produced', e.target.value)} placeholder="Ex: 16" />
+                onChange={e => setUnits(e.target.value)} placeholder="Ex: 16" />
             </div>
             <div className={styles.field}>
               <label>Poids total (kg)</label>

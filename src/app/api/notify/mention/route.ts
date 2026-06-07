@@ -19,12 +19,13 @@ export async function POST(req: NextRequest) {
   }
 
   const sent: string[] = []
+  const errors: { email: string; error: string }[] = []
 
   for (const mention of mentions) {
     const email = USER_EMAILS[mention.toLowerCase()]
     if (!email) continue
 
-    await fetch('https://api.resend.com/emails', {
+    const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { Authorization: `Bearer ${RESEND_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -46,8 +47,14 @@ export async function POST(req: NextRequest) {
         `,
       }),
     })
-    sent.push(email)
+    if (res.ok) {
+      sent.push(email)
+    } else {
+      const err = await res.text()
+      console.error('Resend mention error:', res.status, err)
+      errors.push({ email, error: err })
+    }
   }
 
-  return NextResponse.json({ sent: sent.length, emails: sent })
+  return NextResponse.json({ sent: sent.length, emails: sent, errors })
 }

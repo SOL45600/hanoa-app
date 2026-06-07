@@ -104,7 +104,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       monthly_ca: monthlyCA,
       yearly_ca: fiscalCA,
-      yearly_year: `${parseInt(thisYear) - 1}–${thisYear}`,
+      yearly_year: thisYear,
       total_clients: companiesData.pagination?.total || 0,
       unpaid_count: unpaidAll.length,
       unpaid_amount: totalUnpaid,

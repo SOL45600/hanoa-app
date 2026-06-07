@@ -147,6 +147,7 @@ export default function FeedView({ sectionId, userId, profile, supabase }: Props
   const [openComments, setOpenComments] = useState<Record<string, boolean>>({})
   const [preview, setPreview] = useState<Attachment | null>(null)
   const [mentionQuery, setMentionQuery] = useState<string | null>(null)
+  const [dragOver, setDragOver] = useState(false)
   const [users, setUsers] = useState<Profile[]>([])
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -298,7 +299,15 @@ export default function FeedView({ sectionId, userId, profile, supabase }: Props
       )}
 
       {/* Compose */}
-      <div className={styles.compose}>
+      <div className={styles.compose}
+        onDragOver={e => { e.preventDefault(); if (!dragOver) setDragOver(true) }}
+        onDragLeave={e => { e.preventDefault(); setDragOver(false) }}
+        onDrop={e => {
+          e.preventDefault(); setDragOver(false)
+          const files = Array.from(e.dataTransfer.files)
+          if (files.length) setPendingFiles(f => [...f, ...files])
+        }}
+        style={dragOver ? { outline: '2px dashed var(--green)', outlineOffset: 4, borderRadius: 12, background: 'var(--green-light)' } : undefined}>
         <Avatar profile={profile} size={34} />
         <div className={styles.composeRight}>
           <div className={styles.textareaWrap}>
