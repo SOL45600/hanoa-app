@@ -155,8 +155,10 @@ function TaskChip({ task, profiles, onDelete, onView, currentUserId }: {
   const isDone = task.status === 'fait'
   return (
     <div className={`${styles.chip} ${isDone ? styles.chipDone : ''}`}
+      draggable
+      onDragStart={e => { e.stopPropagation(); e.dataTransfer.setData('text/plain', task.id); e.dataTransfer.effectAllowed = 'move' }}
       onClick={e => { e.stopPropagation(); onView() }}
-      style={{ borderLeftColor: task.color || assignee?.color || '#0f6e56', cursor: 'pointer' }}>
+      style={{ borderLeftColor: task.color || assignee?.color || '#0f6e56', cursor: 'grab' }}>
       <span className={styles.chipTitle}>{task.title}</span>
       {(assignee || extName) && (
         <span className={styles.chipAssignee} title={assignee?.full_name || extName}
@@ -262,11 +264,12 @@ function TaskModal({ weekDate, rowKey, rowLabel, profiles, userId, onSave, onClo
   )
 }
 
-/* ─── TASK DETAIL MODAL (visualisation) ──────────────────────── */
-function TaskDetailModal({ task, profiles, onClose, onStatusChange, onDelete, onLogTime }: {
+/* ─── TASK DETAIL MODAL (visualisation + édition) ─────────────── */
+function TaskDetailModal({ task, profiles, onClose, onStatusChange, onDelete, onLogTime, onUpdate }: {
   task: Task; profiles: Profile[]; onClose: () => void
   onStatusChange: (id: string, status: string) => void; onDelete: (id: string) => void
   onLogTime: (task: Task, hours: string, parcel: string) => Promise<boolean>
+  onUpdate: (id: string, fields: Partial<Task>) => void
 }) {
   const assignee = profiles.find(p => p.id === task.assigned_to)
   const assigneeName = assignee?.full_name || task.assignee_name
@@ -276,7 +279,25 @@ function TaskDetailModal({ task, profiles, onClose, onStatusChange, onDelete, on
   const [logP, setLogP] = useState('')
   const [logged, setLogged] = useState(false)
   const [logErr, setLogErr] = useState('')
+  const [editing, setEditing] = useState(false)
+  const [ef, setEf] = useState({
+    title: task.title, description: task.description || '',
+    assigned_to: task.assigned_to || (task.assignee_name ? '__external__' : ''),
+    assignee_name: task.assignee_name || '',
+  })
+  const isExternal = ef.assigned_to === '__external__'
   const miniInput: React.CSSProperties = { padding: '7px 9px', border: '0.5px solid var(--border-mid)', borderRadius: 7, fontSize: 13, background: 'white' }
+
+  const save = () => {
+    if (!ef.title.trim()) return
+    onUpdate(task.id, {
+      title: ef.title.trim(), description: ef.description || undefined,
+      assigned_to: isExternal ? undefined : (ef.assigned_to || undefined),
+      assignee_name: isExternal ? (ef.assignee_name.trim() || undefined) : undefined,
+    })
+    setEditing(false)
+  }
+
   return (
     <div className={styles.modalOverlay} onClick={e => e.target === e.currentTarget && onClose()}>
       <div className={styles.modal}>
@@ -289,19 +310,29 @@ function TaskDetailModal({ task, profiles, onClose, onStatusChange, onDelete, on
         </div>
         <div className={styles.modalBody}>
           <div className={styles.field}>
-            <label>Tâche</label>
-            <div style={{ fontSize: 15, fontWeight: 500 }}>{task.title}</div>
+            <label>Tâche {editing && '*'}</label>
+            {editing
+              ? <input autoFocus value={ef.title} onChange={e => setEf(f => ({ ...f, title: e.target.value }))} />
+              : <div style={{ fontSize: 15, fontWeight: 500 }}>{task.title}</div>}
           </div>
-          {task.description && (
+          {(editing || task.description) && (
             <div className={styles.field}>
               <label>Détails</label>
-              <div style={{ whiteSpace: 'pre-wrap', fontSize: 14, color: 'var(--text)' }}>{task.description}</div>
+              {editing
+                ? <textarea rows={2} value={ef.description} onChange={e => setEf(f => ({ ...f, description: e.target.value }))} />
+                : <div style={{ whiteSpace: 'pre-wrap', fontSize: 14, color: 'var(--text)' }}>{task.description}</div>}
             </div>
           )}
           <div className={styles.formRow}>
             <div className={styles.field}>
               <label>Assigné à</label>
-              <div style={{ fontSize: 14 }}>{assigneeName || '— Non assigné —'}</div>
+              {editing ? (
+                <select value={ef.assigned_to} onChange={e => setEf(f => ({ ...f, assigned_to: e.target.value }))}>
+                  <option value="">— Non assigné —</option>
+                  {profiles.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
+                  <option value="__external__">+ Autre (nom libre)…</option>
+                </select>
+              ) : <div style={{ fontSize: 14 }}>{assigneeName || '— Non assigné —'}</div>}
             </div>
             <div className={styles.field}>
               <label>Statut</label>
@@ -312,27 +343,45 @@ function TaskDetailModal({ task, profiles, onClose, onStatusChange, onDelete, on
               </select>
             </div>
           </div>
-          <div className={styles.field}>
-            <label>Pointer du temps (→ Temps)</label>
-            <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-              <input style={{ ...miniInput, width: 90 }} value={logH} onChange={e => setLogH(e.target.value)} placeholder="heures" />
-              <input style={{ ...miniInput, width: 110 }} value={logP} onChange={e => setLogP(e.target.value)} placeholder="parcelle" />
-              <button type="button" className={styles.saveBtn} style={{ padding: '7px 12px', fontSize: 13 }}
-                onClick={async () => {
-                  setLogErr('')
-                  const ok = await onLogTime(task, logH, logP)
-                  if (ok) { setLogged(true); setLogH(''); setLogP('') }
-                  else setLogErr('Heures invalides, ou table Temps non créée.')
-                }}>Pointer</button>
-              {logged && <span style={{ fontSize: 12, color: 'var(--green)' }}>✓ enregistré</span>}
+          {editing && isExternal && (
+            <div className={styles.field}>
+              <label>Nom de la personne</label>
+              <input value={ef.assignee_name} onChange={e => setEf(f => ({ ...f, assignee_name: e.target.value }))} placeholder="ex : Yannick" />
             </div>
-            {logErr && <span style={{ fontSize: 12, color: '#d85a30' }}>{logErr}</span>}
-          </div>
+          )}
+          {!editing && (
+            <div className={styles.field}>
+              <label>Pointer du temps (→ Temps)</label>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                <input style={{ ...miniInput, width: 90 }} value={logH} onChange={e => setLogH(e.target.value)} placeholder="heures" />
+                <input style={{ ...miniInput, width: 110 }} value={logP} onChange={e => setLogP(e.target.value)} placeholder="parcelle" />
+                <button type="button" className={styles.saveBtn} style={{ padding: '7px 12px', fontSize: 13 }}
+                  onClick={async () => {
+                    setLogErr('')
+                    const ok = await onLogTime(task, logH, logP)
+                    if (ok) { setLogged(true); setLogH(''); setLogP('') }
+                    else setLogErr('Heures invalides, ou table Temps non créée.')
+                  }}>Pointer</button>
+                {logged && <span style={{ fontSize: 12, color: 'var(--green)' }}>✓ enregistré</span>}
+              </div>
+              {logErr && <span style={{ fontSize: 12, color: '#d85a30' }}>{logErr}</span>}
+            </div>
+          )}
         </div>
         <div className={styles.modalFooter}>
-          <button onClick={() => { if (confirm('Supprimer cette tâche ?')) { onDelete(task.id); onClose() } }}
-            className={styles.cancelBtn} style={{ color: '#d85a30' }}>Supprimer</button>
-          <button onClick={onClose} className={styles.saveBtn}>Fermer</button>
+          {editing ? (
+            <>
+              <button onClick={() => setEditing(false)} className={styles.cancelBtn}>Annuler</button>
+              <button onClick={save} disabled={!ef.title.trim()} className={styles.saveBtn}>Enregistrer</button>
+            </>
+          ) : (
+            <>
+              <button onClick={() => { if (confirm('Supprimer cette tâche ?')) { onDelete(task.id); onClose() } }}
+                className={styles.cancelBtn} style={{ color: '#d85a30' }}>Supprimer</button>
+              <button onClick={() => setEditing(true)} className={styles.cancelBtn} style={{ color: '#185fa5' }}>Modifier</button>
+              <button onClick={onClose} className={styles.saveBtn}>Fermer</button>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -519,6 +568,21 @@ export default function CalendarView({ supabase, userId, profile, myOnly = false
     alert(`${overdue.length} tâche(s) reportée(s) à la semaine en cours.`)
   }
 
+  // Édition d'une tâche (depuis la fenêtre de détail)
+  const updateTaskFields = async (id: string, fields: Partial<Task>) => {
+    await supabase.from('tasks').update(fields).eq('id', id)
+    setTasks(ts => ts.map(t => t.id === id ? { ...t, ...fields } : t))
+    setViewingTask(v => (v && v.id === id ? { ...v, ...fields } : v))
+  }
+
+  // Déplacement d'une tâche par glisser-déposer (semaine et/ou ligne cible)
+  const moveTask = async (id: string, newWeek: string, newRow: string) => {
+    const t = tasks.find(x => x.id === id)
+    if (!t || (t.week_start === newWeek && t.row_key === newRow)) return
+    await supabase.from('tasks').update({ week_start: newWeek, row_key: newRow, due_date: newWeek }).eq('id', id)
+    setTasks(ts => ts.map(x => x.id === id ? { ...x, week_start: newWeek, row_key: newRow } : x))
+  }
+
   const allProfiles = profiles
 
   return (
@@ -629,6 +693,8 @@ export default function CalendarView({ supabase, userId, profile, myOnly = false
                         return (
                           <td key={weekKey(w)}
                             className={`${styles.tdCell} ${isThisWeek(w) ? styles.tdToday : ''}`}
+                            onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move' }}
+                            onDrop={e => { e.preventDefault(); const id = e.dataTransfer.getData('text/plain'); if (id) moveTask(id, weekKey(w), row.key) }}
                             onClick={() => setAddingCell({ week: w, rowKey: row.key, rowLabel: row.label })}>
                             {cellTasks.map(t => (
                               <TaskChip key={t.id} task={t} profiles={allProfiles}
@@ -667,6 +733,7 @@ export default function CalendarView({ supabase, userId, profile, myOnly = false
           onStatusChange={updateTaskStatus}
           onDelete={deleteTask}
           onLogTime={logTimeForTask}
+          onUpdate={updateTaskFields}
         />
       )}
     </div>
