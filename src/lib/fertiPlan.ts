@@ -32,16 +32,16 @@ export const FERTI_PLAN: FertiPlanItem[] = [
   { month: 5, row: R, title: 'Calciblanc (barrière minérale) — Pacaniers E (début été)' },
   { month: 6, row: R, title: 'Calciblanc 2e passage — Pacaniers E (été, maintien couverture)' },
 
-  // ── Taille (indicatif, à valider) ──
-  { month: 0, row: 'vergers_taille', title: 'Taille d\'hiver (repos végétatif) — toutes parcelles' },
-  { month: 1, row: 'vergers_taille', title: 'Fin de taille + broyage des bois de taille' },
-  { month: 4, row: 'vergers_taille', title: 'Drageonnage (suppression des rejets) — noisetiers' },
-  { month: 5, row: 'vergers_taille', title: 'Drageonnage — 2e passage' },
+  // ── Taille (indicatif, à valider) — ligne Entretien ──
+  { month: 0, row: 'vergers_entretien', title: 'Taille d\'hiver (repos végétatif) — toutes parcelles' },
+  { month: 1, row: 'vergers_entretien', title: 'Fin de taille + broyage des bois de taille' },
+  { month: 4, row: 'vergers_entretien', title: 'Drageonnage (suppression des rejets) — noisetiers' },
+  { month: 5, row: 'vergers_entretien', title: 'Drageonnage — 2e passage' },
 
-  // ── Broyage inter-rang (indicatif, à valider) ──
-  { month: 3, row: 'vergers_broyage', title: 'Broyage inter-rang — 1er passage de printemps' },
-  { month: 4, row: 'vergers_broyage', title: 'Broyage inter-rang' },
-  { month: 5, row: 'vergers_broyage', title: 'Broyage inter-rang' },
-  { month: 6, row: 'vergers_broyage', title: 'Broyage inter-rang (selon pousse)' },
-  { month: 8, row: 'vergers_broyage', title: 'Broyage avant récolte / nettoyage du sol' },
+  // ── Broyage inter-rang (indicatif, à valider) — ligne Entretien ──
+  { month: 3, row: 'vergers_entretien', title: 'Broyage inter-rang — 1er passage de printemps' },
+  { month: 4, row: 'vergers_entretien', title: 'Broyage inter-rang' },
+  { month: 5, row: 'vergers_entretien', title: 'Broyage inter-rang' },
+  { month: 6, row: 'vergers_entretien', title: 'Broyage inter-rang (selon pousse)' },
+  { month: 8, row: 'vergers_entretien', title: 'Broyage avant récolte / nettoyage du sol' },
 ]

@@ -24,9 +24,7 @@ const PLANNING_ROWS = [
     rows: [
       { key: 'vergers_irrigation',   label: 'Irrigation' },
       { key: 'vergers_ferti_phyto',  label: 'Ferti-phyto' },
-      { key: 'vergers_taille',       label: 'Taille' },
-      { key: 'vergers_broyage',      label: 'Broyage' },
-      { key: 'vergers_entretien',    label: 'Entretien' },
+      { key: 'vergers_entretien',    label: 'Entretien (taille, broyage…)' },
       { key: 'vergers_divers',       label: 'Divers' },
     ]
   },
@@ -63,8 +61,6 @@ const ROW_KEYS = PLANNING_ROWS.flatMap(g => g.rows.map(r => r.key))
 const ROWKEY_ACTIVITY: Record<string, string> = {
   vergers_irrigation: 'Irrigation',
   vergers_ferti_phyto: 'Ferti / phyto',
-  vergers_taille: 'Taille / drageons / capricorne',
-  vergers_broyage: 'Broyage',
   vergers_entretien: 'Entretien matériel',
   vergers_divers: 'Divers',
   transfo_stabilisation: 'Transformation',
@@ -536,7 +532,9 @@ export default function CalendarView({ supabase, userId, profile, myOnly = false
   const generateFertiPlan = async () => {
     const year = new Date().getFullYear()
     const toInsert: any[] = []
+    const curMonth = new Date().getMonth()
     for (const item of FERTI_PLAN) {
+      if (item.month < curMonth) continue // ne pas (re)générer les mois déjà passés
       const wk = weekKey(getMondayOfWeek(new Date(year, item.month, 10)))
       if (!tasks.some(t => t.row_key === item.row && t.title === item.title && (t.week_start || '').slice(0, 4) === String(year))) {
         toInsert.push({
