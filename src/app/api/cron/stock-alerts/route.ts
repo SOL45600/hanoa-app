@@ -50,6 +50,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ alerts: 0 })
   }
 
+  // Throttle : 1 email d'alerte stock par 24h maximum
+  const { data: state } = await supabase
+    .from('cron_state').select('last_sent').eq('key', 'stock_alerts').maybeSingle()
+  const lastMs = state?.last_sent ? new Date(state.last_sent).getTime() : 0
+  if (Date.now() - lastMs < 24 * 3600 * 1000) {
+    return NextResponse.json({ alerts: alerts.length, skipped: 'déjà envoyé (max 1/jour)' })
+  }
+
   await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: `Bearer ${RESEND_KEY}`, 'Content-Type': 'application/json' },
@@ -71,6 +79,11 @@ export async function GET(request: NextRequest) {
       `,
     }),
   })
+
+  // Mémorise l'envoi pour le throttle
+  await supabase.from('cron_state').upsert(
+    { key: 'stock_alerts', last_sent: new Date().toISOString() }, { onConflict: 'key' }
+  )
 
   return NextResponse.json({ alerts: alerts.length, messages: alerts })
 }
