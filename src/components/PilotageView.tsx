@@ -1,6 +1,6 @@
 'use client'
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { SupabaseClient } from '@supabase/supabase-js'
 import { Profile } from '@/lib/types'
 import {
@@ -16,26 +16,39 @@ const PL_RN  = [-9996,-50472,31755,80618,167755,176531,210156,201165,205233,2096
 const PL_EBE = [7026,-3145,83971,147698,263122,274039,318063,305243,309806,314868,335676,-278632,-279631]
 const PL_CFC = [29076,65389,101760,186993,359364,540511,755282,961063,1170911,1385220,1615820,1346875,1075768]
 
-/* ───────── Hypothèses unit-economics (modifiables) ───────── */
+/* ───────── Hypothèses unit-economics ─────────
+   VRAC = noisettes en coque transformées (prix coque ÷ rendement cassage).
+   SACHET 50 g = produit GMS (SOL_BusinessPlan_v3). */
 const DEFAULTS = {
+  // Vrac
   prixCoque: 4,        // €/kg noisettes en coque
-  rendement: 0.40,     // rendement cassage (décortiqué / coque)
+  rendement: 0.40,     // rendement cassage
   pertTorr: 0.08,      // perte poids torréfaction (~8 %)
   pvcDec: 14.5,        // €/kg décortiquées
   pvcTorr: 17,         // €/kg torréfiées
-  pvcSachet: 16,       // €/kg équivalent sachet 50 g
-  embSachet: 0.20,     // €/sachet de 50 g (→ /kg = ×20)
+  // Sachet 50 g (GMS)
+  cdrSachet: 0.81,     // €/sachet (coût de revient complet)
+  pvcTTC: 3.10,        // € prix de vente consommateur TTC (Monoprix)
+  margeDistrib: 0.50,  // marge distributeur sur PVC TTC (convention GMS)
+  tva: 0.055,          // TVA alimentaire
 }
 
 function fmt(n: number, d = 2) { return n.toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d }) }
 function fmtEur0(n: number) { return n.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }) }
 
-/** couleur marge % : rouge (≤0) → orange → vert */
+/** couleur marge % vrac : rouge (≤0) → vert */
 function margeColor(pct: number) {
   if (pct <= 0) return '#c0392b'
   if (pct < 0.10) return '#e67e22'
   if (pct < 0.25) return '#f1c40f'
   if (pct < 0.40) return '#7fb069'
+  return '#0f6e56'
+}
+/** couleur marge €/sachet (légende du business plan) */
+function margeColorSachet(m: number) {
+  if (m < -0.10) return '#c0392b'
+  if (m < 0.05) return '#e67e22'
+  if (m < 0.20) return '#f1c40f'
   return '#0f6e56'
 }
 
@@ -63,27 +76,34 @@ export default function PilotageView({ supabase, profile }: { supabase: Supabase
     })()
   }, [supabase])
 
-  // Calculs dérivés
+  /* ───── Vrac ───── */
   const cdrDec = p.prixCoque / p.rendement
   const cdrTorr = cdrDec / (1 - p.pertTorr)
-  const cdrSachet = cdrDec + p.embSachet * 20 // 50 g → 20 sachets/kg
-
-  const products = useMemo(() => ([
+  const vrac = useMemo(() => ([
     { key: 'dec', nom: 'Décortiquées', pvc: p.pvcDec, cdr: cdrDec },
     { key: 'torr', nom: 'Torréfiées', pvc: p.pvcTorr, cdr: cdrTorr },
-    { key: 'sachet', nom: 'Sachet 50 g', pvc: p.pvcSachet, cdr: cdrSachet },
-  ].map(x => ({ ...x, marge: x.pvc - x.cdr, pct: (x.pvc - x.cdr) / x.pvc }))), [p, cdrDec, cdrTorr, cdrSachet])
+  ].map(x => ({ ...x, marge: x.pvc - x.cdr, pct: (x.pvc - x.cdr) / x.pvc }))), [p, cdrDec, cdrTorr])
 
-  // Heatmap : prix achat (cols) × rendement (rows) → marge €/kg décortiqué
+  // Heatmap vrac : prix coque × rendement
   const COQUE_RANGE = [3, 3.25, 3.5, 3.75, 4]
   const REND_RANGE = [0.30, 0.325, 0.35, 0.375, 0.40]
-  const [hmProduct, setHmProduct] = useState<'dec' | 'torr' | 'sachet'>('dec')
-  const pvcFor = hmProduct === 'dec' ? p.pvcDec : hmProduct === 'torr' ? p.pvcTorr : p.pvcSachet
-  function cellMarge(coque: number, rend: number) {
+  const [hmProduct, setHmProduct] = useState<'dec' | 'torr'>('dec')
+  const pvcFor = hmProduct === 'dec' ? p.pvcDec : p.pvcTorr
+  function cellMargeVrac(coque: number, rend: number) {
     const cd = coque / rend
-    const cdr = hmProduct === 'dec' ? cd : hmProduct === 'torr' ? cd / (1 - p.pertTorr) : cd + p.embSachet * 20
+    const cdr = hmProduct === 'dec' ? cd : cd / (1 - p.pertTorr)
     return { marge: pvcFor - cdr, pct: (pvcFor - cdr) / pvcFor }
   }
+
+  /* ───── Sachet 50 g (GMS) ───── */
+  const cessionHT = (pvcTTC: number, marge: number) => pvcTTC * (1 - marge) / (1 + p.tva)
+  const cessionMono = cessionHT(p.pvcTTC, p.margeDistrib)
+  const margeSachet = cessionMono - p.cdrSachet
+  const margeSachetPct = margeSachet / cessionMono
+
+  // Heatmap sachet : PVC TTC × marge distributeur → marge €/sachet
+  const PVC_RANGE = [2.5, 2.9, 3.1, 3.5, 3.7, 4.5]
+  const DISTRIB_RANGE = [0.40, 0.45, 0.50, 0.55, 0.60]
 
   const plData = PL_YEARS.map((y, i) => ({ year: y, CA: PL_CA[i], EBE: PL_EBE[i], RN: PL_RN[i], CFcum: PL_CFC[i] }))
 
@@ -97,19 +117,25 @@ export default function PilotageView({ supabase, profile }: { supabase: Supabase
         onChange={e => set(parseFloat(e.target.value))} style={{ width: '100%', accentColor: '#0f6e56' }} />
     </div>
   )
+  const card: CSSProperties = { background: '#fff', border: '0.5px solid var(--border)', borderRadius: 14, padding: '18px 20px' }
+  const h3: CSSProperties = { fontSize: 14, marginBottom: 14, textTransform: 'uppercase', letterSpacing: 0.5, color: '#666' }
+
+  if (profile.role !== 'admin') {
+    return <div style={{ padding: 40, textAlign: 'center', color: '#888' }}>Accès réservé à l&apos;administrateur.</div>
+  }
 
   return (
     <div style={{ maxWidth: 1000, margin: '0 auto', padding: '4px 2px 40px' }}>
       <h1 style={{ fontFamily: 'Georgia, serif', fontSize: 24, marginBottom: 4 }}>Pilotage & marges</h1>
       <p style={{ color: '#888', fontSize: 13, marginBottom: 20 }}>
-        Simulateur d&apos;unit-economics noisettes — fais varier les 3 leviers, lis l&apos;impact en direct.
+        Simulateur d&apos;unit-economics — fais varier les leviers, lis l&apos;impact en direct.
         Le P&amp;L 13 ans reste ta source maître (Excel).
       </p>
 
+      {/* ════════ VRAC ════════ */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 18 }}>
-        {/* ── LEVIERS ── */}
-        <div style={{ background: '#fff', border: '0.5px solid var(--border)', borderRadius: 14, padding: '18px 20px' }}>
-          <h3 style={{ fontSize: 14, marginBottom: 14, textTransform: 'uppercase', letterSpacing: 0.5, color: '#666' }}>Leviers</h3>
+        <div style={card}>
+          <h3 style={h3}>Vrac — leviers</h3>
           {slider('Prix d\'achat noisettes en coque', p.prixCoque, 2.5, 5, 0.05, v => setP({ ...p, prixCoque: v }), ' €/kg')}
           {slider('Rendement cassage', p.rendement * 100, 25, 45, 0.5, v => setP({ ...p, rendement: v / 100 }), '%')}
           {realYield && (
@@ -121,36 +147,34 @@ export default function PilotageView({ supabase, profile }: { supabase: Supabase
           )}
           {slider('Prix de vente décortiquées', p.pvcDec, 10, 22, 0.1, v => setP({ ...p, pvcDec: v }), ' €/kg')}
           {slider('Prix de vente torréfiées', p.pvcTorr, 12, 26, 0.1, v => setP({ ...p, pvcTorr: v }), ' €/kg')}
-          <button onClick={() => setP(DEFAULTS)} style={{ fontSize: 12, color: '#999', textDecoration: 'underline', marginTop: 4 }}>réinitialiser</button>
         </div>
 
-        {/* ── KPI par produit ── */}
-        <div style={{ background: '#fff', border: '0.5px solid var(--border)', borderRadius: 14, padding: '18px 20px' }}>
-          <h3 style={{ fontSize: 14, marginBottom: 14, textTransform: 'uppercase', letterSpacing: 0.5, color: '#666' }}>Marge au kg</h3>
-          {products.map(pr => (
-            <div key={pr.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: '0.5px solid #eee' }}>
+        <div style={card}>
+          <h3 style={h3}>Vrac — marge au kg</h3>
+          {vrac.map(pr => (
+            <div key={pr.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', borderBottom: '0.5px solid #eee' }}>
               <div>
                 <div style={{ fontSize: 14, fontWeight: 500 }}>{pr.nom}</div>
                 <div style={{ fontSize: 11, color: '#999' }}>CDR {fmt(pr.cdr)} € · PVC {fmt(pr.pvc)} €</div>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: 18, fontWeight: 700, color: margeColor(pr.pct) }}>{pr.marge >= 0 ? '+' : ''}{fmt(pr.marge)} €</div>
+                <div style={{ fontSize: 19, fontWeight: 700, color: margeColor(pr.pct) }}>{pr.marge >= 0 ? '+' : ''}{fmt(pr.marge)} €</div>
                 <div style={{ fontSize: 12, color: margeColor(pr.pct) }}>{fmt(pr.pct * 100, 0)} %</div>
               </div>
             </div>
           ))}
           <div style={{ fontSize: 11, color: '#aaa', marginTop: 10 }}>
-            CDR = prix coque ÷ rendement. Torréfié : +{fmt(p.pertTorr * 100, 0)}% perte poids. Sachet : +{fmt(p.embSachet, 2)} €/sachet d&apos;emballage.
+            CDR = prix coque ÷ rendement. Torréfié : +{fmt(p.pertTorr * 100, 0)}% perte poids.
           </div>
         </div>
       </div>
 
-      {/* ── HEATMAP 27 combos ── */}
-      <div style={{ background: '#fff', border: '0.5px solid var(--border)', borderRadius: 14, padding: '18px 20px', marginTop: 18 }}>
+      {/* Heatmap vrac */}
+      <div style={{ ...card, marginTop: 18 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
-          <h3 style={{ fontSize: 14, textTransform: 'uppercase', letterSpacing: 0.5, color: '#666' }}>Matrice de marge €/kg</h3>
+          <h3 style={{ ...h3, marginBottom: 0 }}>Vrac — matrice de marge €/kg</h3>
           <div style={{ display: 'flex', gap: 6 }}>
-            {([['dec', 'Décortiquées'], ['torr', 'Torréfiées'], ['sachet', 'Sachet 50 g']] as const).map(([k, lbl]) => (
+            {([['dec', 'Décortiquées'], ['torr', 'Torréfiées']] as const).map(([k, lbl]) => (
               <button key={k} onClick={() => setHmProduct(k)}
                 style={{ fontSize: 12, padding: '4px 10px', borderRadius: 7, border: '0.5px solid var(--border)', background: hmProduct === k ? 'var(--green)' : '#fff', color: hmProduct === k ? '#fff' : '#555' }}>{lbl}</button>
             ))}
@@ -169,7 +193,7 @@ export default function PilotageView({ supabase, profile }: { supabase: Supabase
                 <tr key={r}>
                   <td style={{ fontSize: 12, padding: 6, color: '#555', fontWeight: 500 }}>{fmt(r * 100, 1)} %</td>
                   {COQUE_RANGE.map(c => {
-                    const { marge, pct } = cellMarge(c, r)
+                    const { marge, pct } = cellMargeVrac(c, r)
                     return (
                       <td key={c} style={{ padding: 6 }}>
                         <div style={{ background: margeColor(pct), color: '#fff', borderRadius: 6, padding: '8px 4px', textAlign: 'center', fontSize: 13, fontWeight: 600 }}>
@@ -184,12 +208,85 @@ export default function PilotageView({ supabase, profile }: { supabase: Supabase
             </tbody>
           </table>
         </div>
-        <div style={{ fontSize: 11, color: '#aaa', marginTop: 8 }}>PVC retenu : {fmt(pvcFor)} €/kg (curseur). Vert = marge confortable · rouge = perte.</div>
+        <div style={{ fontSize: 11, color: '#aaa', marginTop: 8 }}>PVC retenu : {fmt(pvcFor)} €/kg (curseur).</div>
       </div>
 
-      {/* ── P&L 13 ans ── */}
-      <div style={{ background: '#fff', border: '0.5px solid var(--border)', borderRadius: 14, padding: '18px 20px', marginTop: 18 }}>
-        <h3 style={{ fontSize: 14, textTransform: 'uppercase', letterSpacing: 0.5, color: '#666', marginBottom: 4 }}>Prévisionnel 13 ans</h3>
+      {/* ════════ SACHET 50 g GMS ════════ */}
+      <div style={{ ...card, marginTop: 18 }}>
+        <h3 style={h3}>Sachet 50 g torréfié — modèle GMS</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20 }}>
+          <div>
+            {slider('Prix de vente consommateur (PVC TTC)', p.pvcTTC, 2.5, 4.5, 0.05, v => setP({ ...p, pvcTTC: v }), ' €')}
+            <div style={{ display: 'flex', gap: 6, marginTop: -6, marginBottom: 12 }}>
+              <button onClick={() => setP({ ...p, pvcTTC: 3.10 })} style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, border: '0.5px solid var(--border)', color: '#555' }}>Monoprix 3,10 €</button>
+              <button onClick={() => setP({ ...p, pvcTTC: 3.70 })} style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, border: '0.5px solid var(--border)', color: '#555' }}>Relay 3,70 €</button>
+            </div>
+            {slider('Marge distributeur (sur PVC TTC)', p.margeDistrib * 100, 30, 60, 1, v => setP({ ...p, margeDistrib: v / 100 }), '%')}
+            {slider('Coût de revient / sachet (CDR)', p.cdrSachet, 0.5, 1.3, 0.01, v => setP({ ...p, cdrSachet: v }), ' €')}
+          </div>
+          <div>
+            {[
+              ['PVC TTC consommateur', `${fmt(p.pvcTTC)} €`],
+              ['− TVA 5,5 %', `−${fmt(p.pvcTTC - p.pvcTTC / (1 + p.tva))} €`],
+              ['− Marge distributeur', `−${fmt(p.pvcTTC * p.margeDistrib)} €`],
+              ['= Prix de cession HT (SOL)', `${fmt(cessionMono)} €`],
+              ['− CDR / sachet', `−${fmt(p.cdrSachet)} €`],
+            ].map(([k, v], i) => (
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '7px 0', borderBottom: '0.5px solid #f0f0f0', color: i === 3 ? '#333' : '#777', fontWeight: i === 3 ? 600 : 400 }}>
+                <span>{k}</span><span>{v}</span>
+              </div>
+            ))}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 12 }}>
+              <span style={{ fontSize: 14, fontWeight: 600 }}>Marge SOL / sachet</span>
+              <span style={{ fontSize: 24, fontWeight: 800, color: margeColorSachet(margeSachet) }}>
+                {margeSachet >= 0 ? '+' : ''}{fmt(margeSachet)} €
+              </span>
+            </div>
+            <div style={{ textAlign: 'right', fontSize: 12, color: margeColorSachet(margeSachet) }}>
+              {fmt(margeSachetPct * 100, 0)} % du prix de cession
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Heatmap sachet : PVC TTC × marge distributeur */}
+      <div style={{ ...card, marginTop: 18 }}>
+        <h3 style={h3}>Sachet — sensibilité marge €/sachet (PVC × marge distributeur)</h3>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: 460 }}>
+            <thead>
+              <tr>
+                <th style={{ fontSize: 11, color: '#888', textAlign: 'left', padding: 6 }}>PVC TTC ↓ / Marge distrib. →</th>
+                {DISTRIB_RANGE.map(d => <th key={d} style={{ fontSize: 12, padding: 6, color: '#555' }}>{fmt(d * 100, 0)} %</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {PVC_RANGE.map(pvc => (
+                <tr key={pvc}>
+                  <td style={{ fontSize: 12, padding: 6, color: '#555', fontWeight: 500 }}>{fmt(pvc)} €</td>
+                  {DISTRIB_RANGE.map(d => {
+                    const m = cessionHT(pvc, d) - p.cdrSachet
+                    return (
+                      <td key={d} style={{ padding: 6 }}>
+                        <div style={{ background: margeColorSachet(m), color: '#fff', borderRadius: 6, padding: '8px 4px', textAlign: 'center', fontSize: 13, fontWeight: 600 }}>
+                          {m >= 0 ? '+' : ''}{fmt(m)} €
+                        </div>
+                      </td>
+                    )
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div style={{ fontSize: 11, color: '#aaa', marginTop: 8 }}>
+          CDR retenu : {fmt(p.cdrSachet)} €/sachet. Légende : <span style={{ color: '#0f6e56' }}>vert ≥ 0,20 €</span> · <span style={{ color: '#f1c40f' }}>jaune 0,05–0,20 €</span> · <span style={{ color: '#e67e22' }}>orange critique</span> · <span style={{ color: '#c0392b' }}>rouge &lt; −0,10 €</span>.
+        </div>
+      </div>
+
+      {/* ════════ P&L 13 ans ════════ */}
+      <div style={{ ...card, marginTop: 18 }}>
+        <h3 style={{ ...h3, marginBottom: 4 }}>Prévisionnel 13 ans</h3>
         <p style={{ fontSize: 12, color: '#aaa', marginBottom: 14 }}>Source : PREV_Hanoa (Excel maître). CA &amp; EBE en barres, résultat net et trésorerie cumulée en courbes.</p>
         <div style={{ width: '100%', height: 320 }}>
           <ResponsiveContainer>
