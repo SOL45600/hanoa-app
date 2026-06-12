@@ -18,6 +18,7 @@ import LotsView from './lots/LotsView'
 import StockView from './lots/StockView'
 import FertPhytoView from './FertPhytoView'
 import TempsView from './TempsView'
+import PilotageView from './PilotageView'
 import Modal from './Modal'
 import styles from './AppShell.module.css'
 
@@ -251,12 +252,16 @@ export default function AppShell({ user, profile, initialSections }: Props) {
           {!showUsers && selected && selected.label.toLowerCase() === 'temps' && (
             <TempsView supabase={supabase} userId={user.id} profile={profile} />
           )}
+          {!showUsers && selected && selected.label.toLowerCase() === 'pilotage' && (
+            <PilotageView supabase={supabase} profile={profile} />
+          )}
           {!showUsers && !showSearch && selected &&
             selected.label.toLowerCase() !== 'planning' &&
             selected.label.toLowerCase() !== 'finance' &&
             selected.label.toLowerCase() !== 'lots' &&
             selected.label.toLowerCase() !== 'stock' &&
             selected.label.toLowerCase() !== 'temps' &&
+            selected.label.toLowerCase() !== 'pilotage' &&
             !selected.label.toLowerCase().includes('irrigation') &&
             selected.label.toLowerCase() !== 'commandes' &&
             view === 'feed' && (
@@ -268,6 +273,7 @@ export default function AppShell({ user, profile, initialSections }: Props) {
             selected.label.toLowerCase() !== 'lots' &&
             selected.label.toLowerCase() !== 'stock' &&
             selected.label.toLowerCase() !== 'temps' &&
+            selected.label.toLowerCase() !== 'pilotage' &&
             !selected.label.toLowerCase().includes('irrigation') &&
             selected.label.toLowerCase() !== 'commandes' &&
             view === 'docs' && (
