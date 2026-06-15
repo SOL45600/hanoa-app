@@ -44,7 +44,7 @@ export default function UsersView({ currentUserId }: { currentUserId: string }) 
     })
     const data = await res.json()
     if (res.ok) {
-      setMsg(`✓ ${form.full_name} créé avec succès.`)
+      setMsg(`✓ ${form.full_name} créé. ⚠️ Aucun email n'est envoyé automatiquement — communique-lui ses identifiants : ${form.email} / mot de passe : ${form.password}`)
       setMsgType('ok')
       setShowAdd(false)
       setForm({ email: '', full_name: '', initials: '', color: COLORS[0], role: 'member', password: '' })

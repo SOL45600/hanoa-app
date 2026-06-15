@@ -43,7 +43,7 @@ const TYPES = [
 const typeLabel = (k: string) => TYPES.find(t => t.key === k)?.label || k
 
 interface Product { id: string; name: string; type: string; dosage: string; amm?: string | null; active?: boolean; crops?: string[] | null; base?: string | null }
-const DOSE_BASES = ['à l\'ha', 'par arbre', 'par cuve 1000 L', 'par cuve 500 L', 'manuel']
+const DOSE_BASES = ['à l\'ha', 'par arbre', 'par cuve 1500 L', 'par cuve 1000 L', 'par cuve 500 L', 'manuel']
 interface Intervention {
   id: string; date: string; parcel: string; type: string; product_name: string
   dosage: string; dar: number; surface?: string | null; operator?: string | null; notes?: string | null
