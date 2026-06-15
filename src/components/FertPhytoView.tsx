@@ -272,6 +272,7 @@ export default function FertPhytoView({ supabase, userId, profile, sectionId }: 
           <button type="submit" disabled={saving} style={btnGreen}>{saving ? 'Enregistrement…' : 'Ajouter au registre'}</button>
           {productsOfType.length === 0 && <span style={{ fontSize: 12, color: 'var(--muted)' }}>Aucun produit pour ce type — ajoute-en via « Gérer les produits ».</span>}
         </div>
+        {err && <div style={{ marginTop: 12, background: '#faece7', color: '#d85a30', fontSize: 13, padding: '10px 12px', borderRadius: 8 }}>⚠️ {err}</div>}
       </form>
 
       {/* ── Registre (tableau) ── */}
