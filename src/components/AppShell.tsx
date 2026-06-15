@@ -8,7 +8,7 @@ import TopBar from './TopBar'
 import HomeView from './HomeView'
 import FeedView from './FeedView'
 import DocsView from './DocsView'
-import WeenatView from './WeenatView'
+import IrrigationView from './IrrigationView'
 import UsersView from './UsersView'
 import SearchView from './SearchView'
 import CommandesView from './CommandesView'
@@ -242,7 +242,7 @@ export default function AppShell({ user, profile, initialSections }: Props) {
           {!showUsers && selected && selected.label.toLowerCase() === 'stock' && (
             <StockView supabase={supabase} />
           )}
-          {!showUsers && selected && selected.label.toLowerCase().includes('irrigation') && <WeenatView />}
+          {!showUsers && selected && selected.label.toLowerCase().includes('irrigation') && <IrrigationView supabase={supabase} userId={user.id} />}
           {!showUsers && selected && selected.label.toLowerCase() === 'commandes' && (
             <CommandesView sectionId={selected.id} userId={user.id} profile={profile} supabase={supabase} />
           )}
