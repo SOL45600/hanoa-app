@@ -262,8 +262,17 @@ function ConditioningModal({ lot, supabase, onSaved, onClose }: {
     const per = parseFmt(fmt); const n = parseInt(unitsStr) || 0
     return (per && n) ? String(Math.round(per * n * 100) / 100) : ''
   }
+  // Sens inverse : quantité totale à conditionner ÷ format → nombre d'unités
+  const computeUnits = (fmt: string, totalStr: string) => {
+    const per = parseFmt(fmt); const t = parseFloat((totalStr || '').replace(',', '.')) || 0
+    return (per && t) ? String(Math.floor(t / per)) : ''
+  }
   const setUnits = (v: string) => setForm(f => ({ ...f, units_produced: v, total_weight_kg: computeWeight(f.format, v) || f.total_weight_kg }))
-  const setFmt = (v: string) => setForm(f => ({ ...f, format: v, total_weight_kg: computeWeight(v, f.units_produced) || f.total_weight_kg }))
+  const setTotal = (v: string) => setForm(f => ({ ...f, total_weight_kg: v, units_produced: computeUnits(f.format, v) || f.units_produced }))
+  // Changer de format recalcule les unités si une quantité totale est saisie, sinon le poids
+  const setFmt = (v: string) => setForm(f => f.total_weight_kg
+    ? { ...f, format: v, units_produced: computeUnits(v, f.total_weight_kg) || f.units_produced }
+    : { ...f, format: v, total_weight_kg: computeWeight(v, f.units_produced) || f.total_weight_kg })
   const product = PRODUCT_TYPES[productCode]
   const finishedLotNumber = generateFinishedLotNumber(lot.lot_number, productCode)
 
@@ -317,9 +326,9 @@ function ConditioningModal({ lot, supabase, onSaved, onClose }: {
                 onChange={e => setUnits(e.target.value)} placeholder="Ex: 16" />
             </div>
             <div className={styles.field}>
-              <label>Poids total (kg)</label>
+              <label>Quantité totale à conditionner (kg/L)</label>
               <input type="number" step="0.1" value={form.total_weight_kg}
-                onChange={e => set('total_weight_kg', e.target.value)} />
+                onChange={e => setTotal(e.target.value)} placeholder="Ex: 80 → unités calculées" />
             </div>
             <div className={styles.field}>
               <label>Date de production</label>

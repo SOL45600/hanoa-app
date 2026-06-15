@@ -5,6 +5,37 @@ import { Profile } from '@/lib/types'
 import DocPreview from './DocPreview'
 import styles from './CommandesView.module.css'
 
+/* Lundi de la semaine PRÉCÉDANT l'expédition (clé locale YYYY-MM-DD) */
+function prepWeekStart(shipISO: string): string {
+  if (!shipISO) return ''
+  const d = new Date(shipISO + 'T00:00:00')
+  const day = d.getDay() // 0=dim … 6=sam
+  d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day) - 7) // lundi de la semaine d'avant
+  const y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, '0'), dd = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${dd}`
+}
+
+/* Crée la tâche "À préparer" dans l'agenda collectif, assignée à Peter + Ariel. */
+async function createPrepTask(supabase: SupabaseClient, userId: string, orderNumber: string, client: string, shipISO: string) {
+  try {
+    const week = prepWeekStart(shipISO)
+    if (!week) return
+    const { data: profs } = await supabase.from('profiles').select('id, full_name')
+    const findId = (q: string) => profs?.find(p => (p.full_name || '').toLowerCase().includes(q))?.id
+    const peter = findId('peter'); const ariel = findId('ariel')
+    const co = [ariel].filter((x): x is string => !!x && x !== peter)
+    const base = {
+      title: `Préparer commande #${orderNumber.trim()} — ${client}`,
+      row_key: 'commandes', week_start: week, due_date: week,
+      status: 'a_faire', created_by: userId,
+      assigned_to: peter || ariel || undefined,
+    }
+    const payload = co.length ? { ...base, assignee_ids: co } : base
+    const { error } = await supabase.from('tasks').insert(payload)
+    if (error && /assignee_ids/.test(error.message)) await supabase.from('tasks').insert(base)
+  } catch { /* best-effort */ }
+}
+
 /* ─── TYPES ─────────────────────────────────────────────────── */
 interface OrderLine {
   id?: string
@@ -392,6 +423,8 @@ function NewOrderForm({ sectionId, userId, supabase, onCreated, onCancel, editOr
       .select('*').single()
     if (error || !order) { setSaving(false); return }
     if (cleanLines.length) await supabase.from('order_lines').insert(cleanLines.map(l => ({ ...l, order_id: order.id })))
+    // Agenda collectif : crée une tâche "À préparer" assignée à Peter + Ariel, la semaine avant l'expédition.
+    await createPrepTask(supabase, userId, order.order_number, form.client, form.ship_date)
     onCreated({ ...order, lines: lines.filter(l => l.product), attachments: [] })
     setSaving(false)
   }

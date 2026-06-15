@@ -21,11 +21,22 @@ export async function POST(req: NextRequest) {
     .from('profiles').select('full_name')
     .eq('id', assigneeId).maybeSingle()
 
-  const USER_EMAILS: Record<string, string> = {
-    benjamin: 'benjamin@s-o-l.fr', nathalie: 'nathalie@s-o-l.fr', peter: 'peter@s-o-l.fr',
+  // Email réel depuis auth.users (clé service-role) — vaut pour tous les membres.
+  let targetEmail = ''
+  try {
+    const admin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    )
+    const { data: u } = await admin.auth.admin.getUserById(assigneeId)
+    targetEmail = u?.user?.email || ''
+  } catch { /* fallback ci-dessous */ }
+  // Fallback : convention prénom@s-o-l.fr
+  if (!targetEmail) {
+    const firstName = (assignee?.full_name || '').trim().split(/\s+/)[0].toLowerCase()
+    if (firstName) targetEmail = `${firstName}@s-o-l.fr`
   }
-  const firstName = (assignee?.full_name || '').trim().split(/\s+/)[0].toLowerCase()
-  const targetEmail = USER_EMAILS[firstName]
   if (!targetEmail) {
     return NextResponse.json({ sent: 0, reason: 'email assigné introuvable' })
   }

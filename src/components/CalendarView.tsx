@@ -113,6 +113,7 @@ interface Task {
   row_key: string
   week_start: string
   assigned_to?: string
+  assignee_ids?: string[]
   assignee_name?: string
   created_by: string
   status: string
@@ -148,6 +149,11 @@ function TaskChip({ task, profiles, onDelete, onView, currentUserId }: {
   const extName = !assignee ? (task.assignee_name || '') : ''
   const extInitials = extName.split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0, 2)
   const badgeColor = assignee?.color || '#8a8a86'
+  // Co-assignés (assignation multiple), hors assigné principal
+  const coAssignees = (task.assignee_ids || [])
+    .filter(id => id !== task.assigned_to)
+    .map(id => profiles.find(p => p.id === id))
+    .filter((p): p is Profile => !!p)
   const isDone = task.status === 'fait'
   return (
     <div className={`${styles.chip} ${isDone ? styles.chipDone : ''}`}
@@ -162,6 +168,12 @@ function TaskChip({ task, profiles, onDelete, onView, currentUserId }: {
           {assignee?.initials || extInitials}
         </span>
       )}
+      {coAssignees.map(p => (
+        <span key={p.id} className={styles.chipAssignee} title={p.full_name}
+          style={{ background: (p.color || '#8a8a86') + '22', color: p.color || '#8a8a86', marginLeft: -4 }}>
+          {p.initials}
+        </span>
+      ))}
       {(task.created_by === currentUserId || !task.assigned_to) && (
         <button className={styles.chipDelete} onClick={e => { e.stopPropagation(); onDelete() }}>×</button>
       )}
@@ -176,10 +188,13 @@ function TaskModal({ weekDate, rowKey, rowLabel, profiles, userId, onSave, onClo
   error?: string
 }) {
   const [form, setForm] = useState({
-    title: '', description: '', assigned_to: '', assignee_name: '', status: 'a_faire', color: ''
+    title: '', description: '', assigned_to: '', assignee_name: '', status: 'a_faire', color: '',
+    assignee_ids: [] as string[],
   })
   const { num, range } = fmtWeekHeader(weekDate)
   const isExternal = form.assigned_to === '__external__'
+  const toggleCo = (id: string) => setForm(f => ({ ...f,
+    assignee_ids: f.assignee_ids.includes(id) ? f.assignee_ids.filter(x => x !== id) : [...f.assignee_ids, id] }))
 
   const submit = () => {
     if (!form.title.trim()) return
@@ -190,6 +205,9 @@ function TaskModal({ weekDate, rowKey, rowLabel, profiles, userId, onSave, onClo
     }
     // Only set assignee_name for external people (avoids referencing the column for member tasks)
     if (isExternal && form.assignee_name.trim()) payload.assignee_name = form.assignee_name.trim()
+    // Co-assignés (assignation multiple) — n'inclut la colonne que si renseigné
+    const co = form.assignee_ids.filter(id => id !== form.assigned_to)
+    if (co.length) payload.assignee_ids = co
     onSave(payload)
   }
 
@@ -244,6 +262,21 @@ function TaskModal({ weekDate, rowKey, rowLabel, profiles, userId, onSave, onClo
                 placeholder="ex : Yannick" />
             </div>
           )}
+          {!isExternal && (
+            <div className={styles.field}>
+              <label>Co-assignés (optionnel)</label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {profiles.filter(p => p.id !== form.assigned_to).map(p => (
+                  <button type="button" key={p.id} onClick={() => toggleCo(p.id)}
+                    style={{ fontSize: 12, padding: '4px 10px', borderRadius: 14, border: '0.5px solid var(--border-mid)',
+                      background: form.assignee_ids.includes(p.id) ? (p.color || '#0f6e56') : '#fff',
+                      color: form.assignee_ids.includes(p.id) ? '#fff' : '#555' }}>
+                    {p.full_name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
         {error && <div className={styles.modalError}><i className="ti ti-alert-circle" /> {error}</div>}
         <div className={styles.modalFooter}>
@@ -280,16 +313,21 @@ function TaskDetailModal({ task, profiles, onClose, onStatusChange, onDelete, on
     title: task.title, description: task.description || '',
     assigned_to: task.assigned_to || (task.assignee_name ? '__external__' : ''),
     assignee_name: task.assignee_name || '',
+    assignee_ids: (task.assignee_ids || []) as string[],
   })
   const isExternal = ef.assigned_to === '__external__'
+  const toggleCo = (id: string) => setEf(f => ({ ...f,
+    assignee_ids: f.assignee_ids.includes(id) ? f.assignee_ids.filter(x => x !== id) : [...f.assignee_ids, id] }))
   const miniInput: React.CSSProperties = { padding: '7px 9px', border: '0.5px solid var(--border-mid)', borderRadius: 7, fontSize: 13, background: 'white' }
 
   const save = () => {
     if (!ef.title.trim()) return
+    const co = ef.assignee_ids.filter(id => id !== ef.assigned_to)
     onUpdate(task.id, {
       title: ef.title.trim(), description: ef.description || undefined,
       assigned_to: isExternal ? undefined : (ef.assigned_to || undefined),
       assignee_name: isExternal ? (ef.assignee_name.trim() || undefined) : undefined,
+      assignee_ids: co,
     })
     setEditing(false)
   }
@@ -328,7 +366,7 @@ function TaskDetailModal({ task, profiles, onClose, onStatusChange, onDelete, on
                   {profiles.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
                   <option value="__external__">+ Autre (nom libre)…</option>
                 </select>
-              ) : <div style={{ fontSize: 14 }}>{assigneeName || '— Non assigné —'}</div>}
+              ) : <div style={{ fontSize: 14 }}>{[assigneeName, ...(task.assignee_ids || []).filter(id => id !== task.assigned_to).map(id => profiles.find(p => p.id === id)?.full_name).filter(Boolean)].filter(Boolean).join(', ') || '— Non assigné —'}</div>}
             </div>
             <div className={styles.field}>
               <label>Statut</label>
@@ -343,6 +381,21 @@ function TaskDetailModal({ task, profiles, onClose, onStatusChange, onDelete, on
             <div className={styles.field}>
               <label>Nom de la personne</label>
               <input value={ef.assignee_name} onChange={e => setEf(f => ({ ...f, assignee_name: e.target.value }))} placeholder="ex : Yannick" />
+            </div>
+          )}
+          {editing && !isExternal && (
+            <div className={styles.field}>
+              <label>Co-assignés (optionnel)</label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {profiles.filter(p => p.id !== ef.assigned_to).map(p => (
+                  <button type="button" key={p.id} onClick={() => toggleCo(p.id)}
+                    style={{ fontSize: 12, padding: '4px 10px', borderRadius: 14, border: '0.5px solid var(--border-mid)',
+                      background: ef.assignee_ids.includes(p.id) ? (p.color || '#0f6e56') : '#fff',
+                      color: ef.assignee_ids.includes(p.id) ? '#fff' : '#555' }}>
+                    {p.full_name}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
           {!editing && (
@@ -426,7 +479,7 @@ export default function CalendarView({ supabase, userId, profile, myOnly = false
   const getTasksForCell = (rowKey: string, week: Date) => {
     const wk = weekKey(week)
     return tasks.filter(t => t.row_key === rowKey && t.week_start === wk &&
-      (!filterUser || t.assigned_to === filterUser))
+      (!filterUser || t.assigned_to === filterUser || (t.assignee_ids || []).includes(filterUser)))
   }
 
   // Commandes are auto-assigned to Peter and shown the week BEFORE shipping.
@@ -437,7 +490,10 @@ export default function CalendarView({ supabase, userId, profile, myOnly = false
     const wk = weekKey(week)
     // When filtering by a user other than Peter, commandes (Peter's) are hidden.
     if (filterUser && peter && filterUser !== peter.id) return []
-    return orders.filter(o => o.ship_date && prepWeekKey(o.ship_date) === wk)
+    // N'affiche pas la commande en overlay si une tâche de préparation existe déjà (évite le doublon).
+    const hasPrepTask = (o: OrderLite) => tasks.some(t =>
+      t.row_key === COMMANDES_ROW && t.week_start === wk && t.title.includes(`#${o.order_number.trim()}`))
+    return orders.filter(o => o.ship_date && prepWeekKey(o.ship_date) === wk && !hasPrepTask(o))
   }
 
   // Weather for a week: aggregate over its 7 days (Weenat = past/present only).
@@ -457,9 +513,15 @@ export default function CalendarView({ supabase, userId, profile, myOnly = false
 
   const addTask = async (data: Omit<Task, 'id' | 'created_by'>) => {
     setSaveError('')
-    const { data: task, error } = await supabase.from('tasks')
+    let { data: task, error } = await supabase.from('tasks')
       .insert({ ...data, created_by: userId, due_date: data.week_start })
       .select('*').single()
+    if (error && /assignee_ids/.test(error.message)) {
+      const rest = { ...data }; delete rest.assignee_ids
+      ;({ data: task, error } = await supabase.from('tasks')
+        .insert({ ...rest, created_by: userId, due_date: data.week_start })
+        .select('*').single())
+    }
     if (error || !task) {
       setSaveError(error?.message || 'Erreur — vérifiez que la migration SQL a été exécutée.')
       return
@@ -467,25 +529,24 @@ export default function CalendarView({ supabase, userId, profile, myOnly = false
     setTasks(ts => [...ts, task])
     setAddingCell(null)
 
-    // Notify assigned user
-    if (data.assigned_to && data.assigned_to !== userId) {
-      const assignee = profiles.find(p => p.id === data.assigned_to)
-      if (assignee?.email) {
-        const wk = fmtWeekHeader(new Date(data.week_start))
-        const rowLabel = PLANNING_ROWS.flatMap(g => g.rows).find(r => r.key === data.row_key)?.label || ''
-        fetch('/api/notify/assign', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            assigneeId: data.assigned_to,
-            assignerName: profile.full_name,
-            taskTitle: data.title,
-            weekLabel: `${wk.num} (${wk.range})`,
-            rowLabel,
-          }),
-        }).catch(() => {})
-      }
-    }
+    // Notify assigned user(s) — principal + co-assignés
+    const toNotify = [data.assigned_to, ...(data.assignee_ids || [])]
+      .filter((id): id is string => !!id && id !== userId)
+    const wk = fmtWeekHeader(new Date(data.week_start))
+    const rowLabel = PLANNING_ROWS.flatMap(g => g.rows).find(r => r.key === data.row_key)?.label || ''
+    Array.from(new Set(toNotify)).forEach(id => {
+      fetch('/api/notify/assign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assigneeId: id,
+          assignerName: profile.full_name,
+          taskTitle: data.title,
+          weekLabel: `${wk.num} (${wk.range})`,
+          rowLabel,
+        }),
+      }).catch(() => {})
+    })
   }
 
   const deleteTask = async (id: string) => {
@@ -568,7 +629,11 @@ export default function CalendarView({ supabase, userId, profile, myOnly = false
 
   // Édition d'une tâche (depuis la fenêtre de détail)
   const updateTaskFields = async (id: string, fields: Partial<Task>) => {
-    await supabase.from('tasks').update(fields).eq('id', id)
+    const { error } = await supabase.from('tasks').update(fields).eq('id', id)
+    if (error && /assignee_ids/.test(error.message)) {
+      const rest = { ...fields }; delete rest.assignee_ids
+      await supabase.from('tasks').update(rest).eq('id', id)
+    }
     setTasks(ts => ts.map(t => t.id === id ? { ...t, ...fields } : t))
     setViewingTask(v => (v && v.id === id ? { ...v, ...fields } : v))
   }
@@ -667,9 +732,13 @@ export default function CalendarView({ supabase, userId, profile, myOnly = false
                   {row.key === COMMANDES_ROW
                     ? weeks.map(w => {
                         const cellOrders = getOrdersForCell(w)
+                        const cellTasks = getTasksForCell(row.key, w)
                         return (
                           <td key={weekKey(w)}
-                            className={`${styles.tdCell} ${isThisWeek(w) ? styles.tdToday : ''}`}>
+                            className={`${styles.tdCell} ${isThisWeek(w) ? styles.tdToday : ''}`}
+                            onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move' }}
+                            onDrop={e => { e.preventDefault(); const id = e.dataTransfer.getData('text/plain'); if (id) moveTask(id, weekKey(w), row.key) }}
+                            onClick={() => setAddingCell({ week: w, rowKey: row.key, rowLabel: row.label })}>
                             {cellOrders.map(o => (
                               <div key={o.id} className={`${styles.chip}`}
                                 style={{ borderLeftColor: ORDER_STATUS_COLOR[o.status] || '#ba7517' }}
@@ -683,6 +752,11 @@ export default function CalendarView({ supabase, userId, profile, myOnly = false
                                 )}
                               </div>
                             ))}
+                            {cellTasks.map(t => (
+                              <TaskChip key={t.id} task={t} profiles={allProfiles}
+                                onDelete={() => deleteTask(t.id)} onView={() => setViewingTask(t)} currentUserId={userId} />
+                            ))}
+                            <div className={styles.cellAdd}>+</div>
                           </td>
                         )
                       })
