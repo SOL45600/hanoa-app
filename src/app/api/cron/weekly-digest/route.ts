@@ -79,7 +79,8 @@ export async function GET(request: NextRequest) {
   for (const m of (profiles || [])) {
     if (m.role === 'readonly') continue
     const mine = (tasks || []).filter((t: any) =>
-      t.assigned_to === m.id || (Array.isArray(t.assignee_ids) && t.assignee_ids.includes(m.id)))
+      t.status !== 'fait' &&
+      (t.assigned_to === m.id || (Array.isArray(t.assignee_ids) && t.assignee_ids.includes(m.id))))
 
     // Email réel
     let email = ''
