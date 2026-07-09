@@ -62,10 +62,14 @@ function SectionNode({ node, depth, selected, onSelect, onDelete, onRename, onMo
       <div
         className={`${styles.node} ${isSel ? styles.selected : ''}`}
         style={{ paddingLeft: 14 + depth * 14 }}
-        onClick={() => { if (!editing) { onSelect(node); if (hasChildren) setExpanded(e => !e) } }}
+        onClick={() => { if (!editing) onSelect(node) }}
       >
         {hasChildren
-          ? <i className={`ti ${expanded ? 'ti-chevron-down' : 'ti-chevron-right'}`} style={{ fontSize: 12, color: '#888', flexShrink: 0 }} />
+          ? <button type="button" aria-label={expanded ? 'Replier' : 'Développer'}
+              onClick={e => { e.stopPropagation(); setExpanded(x => !x) }}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 22, height: 22, marginLeft: -5, flexShrink: 0, color: '#888' }}>
+              <i className={`ti ${expanded ? 'ti-chevron-down' : 'ti-chevron-right'}`} style={{ fontSize: 13 }} />
+            </button>
           : <span style={{ width: 12, flexShrink: 0 }} />
         }
         <i className={`ti ${node.label.toLowerCase() === 'temps' ? 'ti-clock' : node.icon}`} style={{ fontSize: 15, flexShrink: 0, color: isSel ? 'var(--green)' : '#888' }} />

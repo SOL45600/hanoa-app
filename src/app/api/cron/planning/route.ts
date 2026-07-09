@@ -52,10 +52,19 @@ export async function GET(request: NextRequest) {
   }
   if (toInsert.length) await db.from('tasks').insert(toInsert)
 
-  // 3) Rappel email début de mois (le 1er, ou forcé via ?alert=1)
+  // 3) Rappel email début de mois — MAX 1 par mois (anti-bombardement), ou forcé via ?alert=1
   let alertSent = false
   const force = request.nextUrl.searchParams.get('alert') === '1'
-  if ((today.getDate() === 1 || force) && RESEND_KEY) {
+  const monthTag = `${year}-${String(today.getMonth() + 1).padStart(2, '0')}`
+  let alreadySentThisMonth = false
+  if (!force) {
+    const { data: st } = await db.from('cron_state').select('last_sent').eq('key', 'planning_digest').maybeSingle()
+    if (st?.last_sent) {
+      const d = new Date(st.last_sent)
+      alreadySentThisMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` === monthTag
+    }
+  }
+  if (((today.getDate() === 1 && !alreadySentThisMonth) || force) && RESEND_KEY) {
     const monthItems = FERTI_PLAN.filter(i => i.month === today.getMonth())
     if (monthItems.length) {
       const monthName = today.toLocaleDateString('fr-FR', { month: 'long' })
@@ -74,6 +83,10 @@ export async function GET(request: NextRequest) {
         }),
       })
       alertSent = res.ok
+      if (res.ok) {
+        await db.from('cron_state').upsert(
+          { key: 'planning_digest', last_sent: new Date().toISOString() }, { onConflict: 'key' })
+      }
     }
   }
 
