@@ -7,7 +7,7 @@ import { FERTI_PLAN } from '@/lib/fertiPlan'
 
 const MONTH_NAMES = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
 const PARCELS = ['A', 'B1', 'B2', 'C', 'D1', 'D2', 'E', 'Verger entier']
-const OPERATORS = ['Nathalie', 'Benjamin', 'Peter']
+const OPERATORS = ['Nathalie', 'Benjamin', 'Peter', 'Ariel']
 const CROPS = ['Noisette', 'Amande', 'Noix de pécan', 'Yuzu']
 
 // Parcelle -> culture / surface (ha) / nb d'arbres (pour les produits dosés/arbre)

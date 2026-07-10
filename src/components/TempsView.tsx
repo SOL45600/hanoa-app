@@ -19,7 +19,7 @@ export const TIME_ACTIVITIES = [
   'Divers',
 ]
 const PARCELS = ['A', 'B1', 'B2', 'C', 'D1', 'D2', 'E', 'Verger entier', '—']
-const OPERATORS = ['Nathalie', 'Benjamin', 'Peter', 'Yannick']
+const OPERATORS = ['Nathalie', 'Benjamin', 'Peter', 'Yannick', 'Ariel']
 const MONTHS = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc']
 
 interface Entry {
