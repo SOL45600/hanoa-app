@@ -56,15 +56,14 @@ export async function GET(request: NextRequest) {
   let alertSent = false
   const force = request.nextUrl.searchParams.get('alert') === '1'
   const monthTag = `${year}-${String(today.getMonth() + 1).padStart(2, '0')}`
+  // Verrou mensuel STRICT : s'applique toujours, même avec ?alert=1 (anti-spam).
   let alreadySentThisMonth = false
-  if (!force) {
-    const { data: st } = await db.from('cron_state').select('last_sent').eq('key', 'planning_digest').maybeSingle()
-    if (st?.last_sent) {
-      const d = new Date(st.last_sent)
-      alreadySentThisMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` === monthTag
-    }
+  const { data: st } = await db.from('cron_state').select('last_sent').eq('key', 'planning_digest').maybeSingle()
+  if (st?.last_sent) {
+    const d = new Date(st.last_sent)
+    alreadySentThisMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` === monthTag
   }
-  if (((today.getDate() === 1 && !alreadySentThisMonth) || force) && RESEND_KEY) {
+  if ((today.getDate() === 1 || force) && !alreadySentThisMonth && RESEND_KEY) {
     const monthItems = FERTI_PLAN.filter(i => i.month === today.getMonth())
     if (monthItems.length) {
       const monthName = today.toLocaleDateString('fr-FR', { month: 'long' })

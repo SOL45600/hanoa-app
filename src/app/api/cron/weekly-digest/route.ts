@@ -60,12 +60,17 @@ export async function GET(request: NextRequest) {
     { auth: { autoRefreshToken: false, persistSession: false } })
 
   const wk = mondayKey()
-  // Anti-doublon : un seul envoi par semaine (sauf ?force=1). last_sent = timestamp d'envoi.
-  if (!force) {
-    const { data: state } = await db.from('cron_state').select('last_sent').eq('key', 'weekly_digest').maybeSingle()
-    if (state?.last_sent && mondayKeyOf(new Date(state.last_sent)) === wk) {
-      return NextResponse.json({ skipped: 'déjà envoyé cette semaine', week: wk })
-    }
+  // Anti-doublon STRICT : un seul envoi par semaine, quelle que soit la config du cron.
+  // Le verrou s'applique TOUJOURS (même avec ?force=1) pour empêcher tout spam.
+  const { data: state } = await db.from('cron_state').select('last_sent').eq('key', 'weekly_digest').maybeSingle()
+  if (!force && state?.last_sent && mondayKeyOf(new Date(state.last_sent)) === wk) {
+    return NextResponse.json({ skipped: 'déjà envoyé cette semaine', week: wk })
+  }
+  // Réserve immédiatement le créneau de la semaine AVANT d'envoyer (ferme la fenêtre de course
+  // et neutralise ?force=1 : un 2e appel la même semaine sera bloqué).
+  await db.from('cron_state').upsert({ key: 'weekly_digest', last_sent: new Date().toISOString() }, { onConflict: 'key' })
+  if (state?.last_sent && mondayKeyOf(new Date(state.last_sent)) === wk) {
+    return NextResponse.json({ skipped: 'déjà envoyé cette semaine (force ignoré)', week: wk })
   }
 
   const [{ data: profiles }, { data: tasks }] = await Promise.all([
@@ -112,6 +117,6 @@ export async function GET(request: NextRequest) {
     results.push({ name: m.full_name, to: email, sent: res.ok, tasks: mine.length })
   }
 
-  await db.from('cron_state').upsert({ key: 'weekly_digest', last_sent: new Date().toISOString() }, { onConflict: 'key' })
+  // (créneau déjà réservé en amont — pas de nouvel upsert ici)
   return NextResponse.json({ week: wk, results })
 }
