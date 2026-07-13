@@ -1,6 +1,10 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
+// Évite la mise en cache des lectures Supabase (sinon le throttle cron_state est défait).
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 const RESEND_KEY = process.env.RESEND_API_KEY
 const ALERT_EMAIL = process.env.ALERT_EMAIL || 'benjamin@s-o-l.fr'
 
