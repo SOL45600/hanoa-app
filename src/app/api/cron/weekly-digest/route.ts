@@ -48,7 +48,6 @@ async function hydricBlock(): Promise<string> {
 
 export async function GET(request: NextRequest) {
   const auth = request.headers.get('x-cron-job')
-  const force = request.nextUrl.searchParams.get('force') === '1'
   if (auth !== process.env.CRON_SECRET_ALERT_WEENAT) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
@@ -60,18 +59,17 @@ export async function GET(request: NextRequest) {
     { auth: { autoRefreshToken: false, persistSession: false } })
 
   const wk = mondayKey()
-  // Anti-doublon STRICT : un seul envoi par semaine, quelle que soit la config du cron.
-  // Le verrou s'applique TOUJOURS (même avec ?force=1) pour empêcher tout spam.
+  // Anti-doublon ROBUSTE par différence de temps (insensible au fuseau, comme le throttle stock).
+  // Bloque tout nouvel envoi dans les 6 jours — s'applique MÊME avec ?force=1 pour empêcher tout spam.
+  const now = Date.now()
+  const WEEK_MS = 6 * 24 * 3600 * 1000
   const { data: state } = await db.from('cron_state').select('last_sent').eq('key', 'weekly_digest').maybeSingle()
-  if (!force && state?.last_sent && mondayKeyOf(new Date(state.last_sent)) === wk) {
-    return NextResponse.json({ skipped: 'déjà envoyé cette semaine', week: wk })
+  const lastMs = state?.last_sent ? new Date(state.last_sent).getTime() : 0
+  if (now - lastMs < WEEK_MS) {
+    return NextResponse.json({ skipped: 'déjà envoyé cette semaine', week: wk, last_sent: state?.last_sent })
   }
-  // Réserve immédiatement le créneau de la semaine AVANT d'envoyer (ferme la fenêtre de course
-  // et neutralise ?force=1 : un 2e appel la même semaine sera bloqué).
-  await db.from('cron_state').upsert({ key: 'weekly_digest', last_sent: new Date().toISOString() }, { onConflict: 'key' })
-  if (state?.last_sent && mondayKeyOf(new Date(state.last_sent)) === wk) {
-    return NextResponse.json({ skipped: 'déjà envoyé cette semaine (force ignoré)', week: wk })
-  }
+  // Réserve le créneau AVANT d'envoyer (ferme la fenêtre de course).
+  await db.from('cron_state').upsert({ key: 'weekly_digest', last_sent: new Date(now).toISOString() }, { onConflict: 'key' })
 
   const [{ data: profiles }, { data: tasks }] = await Promise.all([
     db.from('profiles').select('id, full_name, role'),
