@@ -1,6 +1,11 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
+// Empêche toute mise en cache de la route et de ses lectures Supabase.
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
+const VERSION = 'throttle-v3'
 const RESEND_KEY = process.env.RESEND_API_KEY
 const APP_URL = 'https://hanoa-app.vercel.app'
 
@@ -66,7 +71,7 @@ export async function GET(request: NextRequest) {
   const { data: state } = await db.from('cron_state').select('last_sent').eq('key', 'weekly_digest').maybeSingle()
   const lastMs = state?.last_sent ? new Date(state.last_sent).getTime() : 0
   if (now - lastMs < WEEK_MS) {
-    return NextResponse.json({ skipped: 'déjà envoyé cette semaine', week: wk, last_sent: state?.last_sent })
+    return NextResponse.json({ v: VERSION, skipped: 'déjà envoyé cette semaine', week: wk, last_sent: state?.last_sent })
   }
   // Réserve le créneau AVANT d'envoyer (ferme la fenêtre de course).
   await db.from('cron_state').upsert({ key: 'weekly_digest', last_sent: new Date(now).toISOString() }, { onConflict: 'key' })
@@ -116,5 +121,5 @@ export async function GET(request: NextRequest) {
   }
 
   // (créneau déjà réservé en amont — pas de nouvel upsert ici)
-  return NextResponse.json({ week: wk, results })
+  return NextResponse.json({ v: VERSION, week: wk, results })
 }
