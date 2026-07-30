@@ -57,6 +57,13 @@ export async function GET(request: NextRequest) {
     })
   }
 
+  // TEMP: raw device objects (pour lire les numéros de série et mapper les parcelles)
+  if (type === 'raw') {
+    const ids = [DEVICES.weather.id, ...DEVICES.tensiometers.map(t => t.id)]
+    const raw = await Promise.all(ids.map(id => weenatFetch(`/devices/${id}/`)))
+    return NextResponse.json(ids.map((id, i) => ({ id, raw: raw[i] })))
+  }
+
   // Plots (parcels) with GeoJSON
   if (type === 'plots') {
     const data = await weenatFetch('/plots/')
