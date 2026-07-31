@@ -5,13 +5,14 @@ const BASE = 'https://api.weenat.com/v3'
 
 const DEVICES = {
   weather: { id: 76938, label: 'Station météo', model: 'P+', metrics: ['T', 'RR', 'U', 'THI'] },
+  // Labels vérifiés via numéro de série Weenat (2026-07) : parcelle réelle de chaque sonde.
   tensiometers: [
-    { id: 76945, label: 'Sonde A — Parcelle D', model: 'CHP-30/60', depths: [30, 60], metrics: ['HPOT', 'T_CAL'] },
-    { id: 76946, label: 'Sonde B — Parcelle D', model: 'CHP-30/60', depths: [30, 60], metrics: ['HPOT', 'T_CAL'] },
-    { id: 76943, label: 'Sonde C', model: 'CHP-15/30', depths: [15, 30], metrics: ['HPOT', 'T_CAL'] },
-    { id: 76944, label: 'Sonde D', model: 'CHP-15/30', depths: [15, 30], metrics: ['HPOT', 'T_CAL'] },
-    { id: 76942, label: 'Sonde E', model: 'CHP-15/30', depths: [15, 30], metrics: ['HPOT', 'T_CAL'] },
-    { id: 76939, label: 'Sonde F', model: 'CHP-15/30', depths: [15, 30], metrics: ['HPOT', 'T_CAL'] },
+    { id: 76943, label: 'Sonde B15', parcel: 'B', serial: 'X800D20', model: 'CHP-15/30', depths: [15, 30], metrics: ['HPOT', 'T_CAL'] },
+    { id: 76946, label: 'Sonde B30', parcel: 'B', serial: 'X800AAB', model: 'CHP-30/60', depths: [30, 60], metrics: ['HPOT', 'T_CAL'] },
+    { id: 76942, label: 'Sonde C15', parcel: 'C', serial: 'X800D25', model: 'CHP-15/30', depths: [15, 30], metrics: ['HPOT', 'T_CAL'] },
+    { id: 76939, label: 'Sonde D15', parcel: 'D', serial: 'X800D1D', model: 'CHP-15/30', depths: [15, 30], metrics: ['HPOT', 'T_CAL'] },
+    { id: 76945, label: 'Sonde D30', parcel: 'D', serial: 'X800A8E', model: 'CHP-30/60', depths: [30, 60], metrics: ['HPOT', 'T_CAL'] },
+    { id: 76944, label: 'Sonde E15', parcel: 'E', serial: 'X800D21', model: 'CHP-15/30', depths: [15, 30], metrics: ['HPOT', 'T_CAL'] },
   ],
 }
 
@@ -57,11 +58,10 @@ export async function GET(request: NextRequest) {
     })
   }
 
-  // TEMP: raw device objects (pour lire les numéros de série et mapper les parcelles)
+  // TEMP: objet device brut complet (inspecter un champ nom éventuel)
   if (type === 'raw') {
-    const ids = [DEVICES.weather.id, ...DEVICES.tensiometers.map(t => t.id)]
-    const raw = await Promise.all(ids.map(id => weenatFetch(`/devices/${id}/`)))
-    return NextResponse.json(ids.map((id, i) => ({ id, raw: raw[i] })))
+    const raw = await weenatFetch(`/devices/${deviceId || DEVICES.tensiometers[0].id}/`)
+    return NextResponse.json(raw)
   }
 
   // Plots (parcels) with GeoJSON
