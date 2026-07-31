@@ -58,12 +58,6 @@ export async function GET(request: NextRequest) {
     })
   }
 
-  // TEMP: objet device brut complet (inspecter un champ nom éventuel)
-  if (type === 'raw') {
-    const raw = await weenatFetch(`/devices/${deviceId || DEVICES.tensiometers[0].id}/`)
-    return NextResponse.json(raw)
-  }
-
   // Plots (parcels) with GeoJSON
   if (type === 'plots') {
     const data = await weenatFetch('/plots/')
