@@ -77,12 +77,18 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ success: true, id: userId })
 }
 
-// PATCH — update role
+// PATCH — update role and/or reset password
 export async function PATCH(req: NextRequest) {
   const admin = makeAdminClient()
-  const { id, role } = await req.json()
-  const { error } = await admin.from('profiles').update({ role }).eq('id', id)
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+  const { id, role, password } = await req.json()
+  if (role) {
+    const { error } = await admin.from('profiles').update({ role }).eq('id', id)
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+  }
+  if (password) {
+    const { error } = await admin.auth.admin.updateUserById(id, { password })
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+  }
   return NextResponse.json({ success: true })
 }
 
