@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
   const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     { auth: { autoRefreshToken: false, persistSession: false } })
 
-  const month = prevMonthKey()
+  const month = request.nextUrl.searchParams.get('month') || prevMonthKey()
   // Throttle : 1 envoi par mois maximum (s'applique même avec ?force=1)
   const { data: st } = await db.from('cron_state').select('last_sent').eq('key', 'reporting_digest').maybeSingle()
   const lastMonth = st?.last_sent ? (() => { const d = new Date(st.last_sent); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` })() : null
