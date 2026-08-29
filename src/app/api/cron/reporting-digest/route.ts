@@ -72,6 +72,21 @@ export async function GET(request: NextRequest) {
       <a href="${APP_URL}" style="display:inline-block;margin-top:8px;padding:10px 20px;background:#0f6e56;color:white;border-radius:8px;text-decoration:none;font-size:14px">Ouvrir le Reporting →</a>
     </div>`
 
+  // Pièce jointe : le PDF designé du mois (téléchargé via la clé service-role)
+  const attachments: any[] = []
+  const pdfPath = rep?.data?.pdf_path
+  if (pdfPath) {
+    try {
+      const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!,
+        { auth: { autoRefreshToken: false, persistSession: false } })
+      const { data: blob } = await admin.storage.from('hanoa-files').download(pdfPath)
+      if (blob) {
+        const b64 = Buffer.from(await blob.arrayBuffer()).toString('base64')
+        attachments.push({ filename: `Reporting SOL - ${month}.pdf`, content: b64 })
+      }
+    } catch { /* email part sans PJ si échec */ }
+  }
+
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: `Bearer ${RESEND_KEY}`, 'Content-Type': 'application/json' },
@@ -80,7 +95,8 @@ export async function GET(request: NextRequest) {
       to: [ALERT_EMAIL],
       subject: `📊 Reporting financier — ${monthLabel(month)}`,
       html,
+      ...(attachments.length ? { attachments } : {}),
     }),
   })
-  return NextResponse.json({ month, sent: res.ok, has_report: !!rep, stock: Math.round(stock) })
+  return NextResponse.json({ month, sent: res.ok, has_report: !!rep, attached: attachments.length > 0, stock: Math.round(stock) })
 }

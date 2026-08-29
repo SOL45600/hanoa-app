@@ -22,7 +22,7 @@ function parseFmtKg(fmt: string): number {
   return v
 }
 
-interface SavedReport { month: string; ca: number | null; bank_balance: number | null; stock_value: number | null; charges: number | null }
+interface SavedReport { month: string; ca: number | null; bank_balance: number | null; stock_value: number | null; charges: number | null; data?: any }
 
 export default function ReportingView({ supabase, profile }: { supabase: SupabaseClient; profile: Profile }) {
   const [monthly, setMonthly] = useState<Record<string, number>>({})
@@ -32,6 +32,13 @@ export default function ReportingView({ supabase, profile }: { supabase: Supabas
   const [bank, setBank] = useState('')
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState('')
+
+  const pdfPath = saved[month]?.data?.pdf_path as string | undefined
+  const downloadPdf = async () => {
+    if (!pdfPath) return
+    const { data } = await supabase.storage.from('hanoa-files').createSignedUrl(pdfPath, 3600)
+    if (data?.signedUrl) window.open(data.signedUrl, '_blank')
+  }
 
   useEffect(() => {
     if (profile.role !== 'admin') return
@@ -127,6 +134,7 @@ export default function ReportingView({ supabase, profile }: { supabase: Supabas
             style={{ padding: '8px 10px', border: '0.5px solid var(--border-mid)', borderRadius: 7, fontSize: 14, background: '#fafaf8', width: 140 }} />
         </div>
         <button onClick={save} disabled={saving} style={{ padding: '9px 16px', background: 'var(--green)', color: '#fff', borderRadius: 8, fontFamily: 'Georgia, serif' }}>{saving ? '…' : 'Enregistrer le mois'}</button>
+        {pdfPath && <button onClick={downloadPdf} style={{ padding: '9px 14px', border: '0.5px solid var(--green)', color: 'var(--green)', borderRadius: 8, background: '#fff', fontFamily: 'Georgia, serif' }}>📄 Télécharger le PDF</button>}
         {msg && <span style={{ fontSize: 13, color: msg.startsWith('✓') ? 'var(--green)' : '#d85a30' }}>{msg}</span>}
       </div>
 

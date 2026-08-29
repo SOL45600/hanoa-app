@@ -43,7 +43,12 @@ export default function AppShell({ user, profile, initialSections }: Props) {
   const [newName, setNewName] = useState('')
   const [newParent, setNewParent] = useState('')
 
-  const tree = buildTree(sections)
+  // Sections financières réservées à l'admin : masquées de la barre latérale pour les autres.
+  const ADMIN_ONLY = ['reporting', 'finance', 'pilotage']
+  const visibleSections = profile.role === 'admin'
+    ? sections
+    : sections.filter(s => !ADMIN_ONLY.includes(s.label.toLowerCase()))
+  const tree = buildTree(visibleSections)
 
   // Load unread counts on mount and subscribe to new posts
   useEffect(() => {
