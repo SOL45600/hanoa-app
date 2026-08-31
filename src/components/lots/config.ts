@@ -18,7 +18,8 @@ export const PARCEL_VARIETY: Record<string, string> = {
   A2: 'COR', // Corabel
 }
 
-export const CALIBERS = ['<11mm', '11-13mm', '13-15mm', '>15mm']
+// Calibres EN COQUE (diamètre) — et non décortiquées
+export const CALIBERS = ['<13mm', '13-15mm', '16-18mm', '19-21mm', '22-24mm']
 
 export const STAGES: Record<string, { label: string; icon: string; color: string; fields: string[] }> = {
   lavage:        { label: 'Lavage',        icon: 'ti-droplet',        color: '#185fa5', fields: ['date', 'notes'] },

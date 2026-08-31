@@ -34,6 +34,8 @@ export default function ReportingView({ supabase, profile }: { supabase: Supabas
   const [msg, setMsg] = useState('')
 
   const pdfPath = saved[month]?.data?.pdf_path as string | undefined
+  const pnl = saved[month]?.data?.pnl as Record<string, number> | undefined
+  const neg = (n: number) => `${n < 0 ? '− ' : ''}${fmtEur(Math.abs(n))}`
   const downloadPdf = async () => {
     if (!pdfPath) return
     const { data } = await supabase.storage.from('hanoa-files').createSignedUrl(pdfPath, 3600)
@@ -146,29 +148,45 @@ export default function ReportingView({ supabase, profile }: { supabase: Supabas
         {kpi('Variation trésorerie', cashDelta != null ? (cashDelta >= 0 ? '+' : '') + fmtEur(cashDelta) : '—', `vs ${monthLabel(prevMonthKey)}`, cashDelta != null && cashDelta < 0 ? '#c0392b' : '#0f6e56')}
       </div>
 
-      {/* P&L — placeholders Phase 2 */}
+      {/* Compte de résultat — réel (SIG) si disponible, sinon placeholders */}
       <div style={card}>
         <h3 style={h3}>Compte de résultat — {monthLabel(month)}</h3>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
           <tbody>
-            {[
-              ['Chiffre d\'affaires HT', fmtEur(caMonth), '#0f6e56'],
-              ['− Achats / coût des ventes', 'Phase 2', '#bbb'],
-              ['= Marge brute', 'Phase 2', '#bbb'],
-              ['− Charges externes', 'Phase 2', '#bbb'],
-              ['− Salaires & charges', 'Phase 2', '#bbb'],
-              ['= EBE', 'Phase 2', '#bbb'],
-              ['− Amortissements & intérêts', 'Phase 2', '#bbb'],
-              ['= Résultat net', 'Phase 2', '#bbb'],
-            ].map(([k, v, c], i) => (
-              <tr key={i} style={{ borderBottom: '0.5px solid #f0f0f0' }}>
-                <td style={{ padding: '8px 4px', color: String(k).startsWith('=') ? '#333' : '#666', fontWeight: String(k).startsWith('=') ? 600 : 400 }}>{k}</td>
-                <td style={{ padding: '8px 4px', textAlign: 'right', fontWeight: 600, color: c as string }}>{v}</td>
+            {(pnl ? [
+              ['Chiffre d\'affaires HT', fmtEur(pnl.ca_ht), '#0f6e56', false],
+              ['− Achats consommés (MP + emballages)', '− ' + fmtEur((pnl.achats_mp || 0) + (pnl.emballages || 0)), '#666', false],
+              ['= Marge brute', fmtEur(pnl.marge_brute), '#0f6e56', true],
+              ['− Charges externes', '− ' + fmtEur(pnl.charges_externes), '#666', false],
+              ['− Charges de personnel', '− ' + fmtEur(pnl.personnel), '#666', false],
+              ['= EBE', neg(pnl.ebe), pnl.ebe < 0 ? '#c0392b' : '#0f6e56', true],
+              ['− Amortissements', '− ' + fmtEur(pnl.amortissements), '#666', false],
+              ['− Charges financières', '− ' + fmtEur(pnl.charges_financieres), '#666', false],
+              ['= Résultat net', neg(pnl.resultat_net), pnl.resultat_net < 0 ? '#c0392b' : '#0f6e56', true],
+            ] : [
+              ['Chiffre d\'affaires HT', fmtEur(caMonth), '#0f6e56', false],
+              ['− Achats / coût des ventes', 'À saisir', '#bbb', false],
+              ['= Marge brute', 'À saisir', '#bbb', true],
+              ['− Charges externes', 'À saisir', '#bbb', false],
+              ['− Charges de personnel', 'À saisir', '#bbb', false],
+              ['= EBE', 'À saisir', '#bbb', true],
+              ['− Amortissements & intérêts', 'À saisir', '#bbb', false],
+              ['= Résultat net', 'À saisir', '#bbb', true],
+            ]).map(([k, v, c, bold], i) => (
+              <tr key={i} style={{ borderBottom: '0.5px solid #f0f0f0', background: bold ? '#f7f9f4' : undefined }}>
+                <td style={{ padding: '8px 6px', color: bold ? '#333' : '#666', fontWeight: bold ? 700 : 400 }}>{k}</td>
+                <td style={{ padding: '8px 6px', textAlign: 'right', fontWeight: bold ? 800 : 600, color: c as string }}>{v}</td>
               </tr>
             ))}
           </tbody>
         </table>
-        <p style={{ fontSize: 11, color: '#aaa', marginTop: 8 }}>Les lignes « Phase 2 » se rempliront dès que le flux de dépenses (scraping mails / relevé bancaire) sera branché.</p>
+        {pnl ? (
+          <p style={{ fontSize: 11, color: '#aaa', marginTop: 8 }}>
+            Estimation de gestion (base engagement HT). Investissements immobilisés du mois : <strong>{fmtEur(pnl.immobilisations || 0)}</strong> (hors résultat). À valider par l&apos;expert-comptable.
+          </p>
+        ) : (
+          <p style={{ fontSize: 11, color: '#aaa', marginTop: 8 }}>Le compte de résultat se remplit après traitement des factures fournisseurs / relevé du mois.</p>
+        )}
       </div>
 
       {/* Détail stock valorisé */}
