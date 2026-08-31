@@ -15,20 +15,20 @@ function prepWeekStart(shipISO: string): string {
   return `${y}-${m}-${dd}`
 }
 
-/* Crée la tâche "À préparer" dans l'agenda collectif, assignée à Peter + Ariel. */
+/* Crée la tâche "À préparer" dans l'agenda collectif, assignée à Peter + Rasamee. */
 async function createPrepTask(supabase: SupabaseClient, userId: string, orderNumber: string, client: string, shipISO: string) {
   try {
     const week = prepWeekStart(shipISO)
     if (!week) return
     const { data: profs } = await supabase.from('profiles').select('id, full_name')
     const findId = (q: string) => profs?.find(p => (p.full_name || '').toLowerCase().includes(q))?.id
-    const peter = findId('peter'); const ariel = findId('ariel')
-    const co = [ariel].filter((x): x is string => !!x && x !== peter)
+    const peter = findId('peter'); const rasamee = findId('rasamee')
+    const co = [rasamee].filter((x): x is string => !!x && x !== peter)
     const base = {
       title: `Préparer commande #${orderNumber.trim()} — ${client}`,
       row_key: 'commandes', week_start: week, due_date: week,
       status: 'a_faire', created_by: userId,
-      assigned_to: peter || ariel || undefined,
+      assigned_to: peter || rasamee || undefined,
     }
     const payload = co.length ? { ...base, assignee_ids: co } : base
     const { error } = await supabase.from('tasks').insert(payload)
@@ -423,7 +423,7 @@ function NewOrderForm({ sectionId, userId, supabase, onCreated, onCancel, editOr
       .select('*').single()
     if (error || !order) { setSaving(false); return }
     if (cleanLines.length) await supabase.from('order_lines').insert(cleanLines.map(l => ({ ...l, order_id: order.id })))
-    // Agenda collectif : crée une tâche "À préparer" assignée à Peter + Ariel, la semaine avant l'expédition.
+    // Agenda collectif : crée une tâche "À préparer" assignée à Peter + Rasamee, la semaine avant l'expédition.
     await createPrepTask(supabase, userId, order.order_number, form.client, form.ship_date)
     onCreated({ ...order, lines: lines.filter(l => l.product), attachments: [] })
     setSaving(false)
