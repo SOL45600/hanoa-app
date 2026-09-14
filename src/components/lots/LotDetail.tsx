@@ -4,7 +4,7 @@ import { SupabaseClient } from '@supabase/supabase-js'
 import { Lot, LotStage, FinishedLot } from './LotsView'
 import {
   VARIETIES, PRODUCERS, STAGES, STATUS_CONFIG,
-  CALIBERS, PRODUCT_TYPES, generateFinishedLotNumber, addDefaultDDM
+  CALIBERS, PRODUCT_TYPES, generateFinishedLotNumber, addDefaultDDM, nutOfVariety
 } from './config'
 import QRCodeDisplay from './QRCodeDisplay'
 import { Profile } from '@/lib/types'
@@ -241,9 +241,12 @@ function ConditioningModal({ lot, supabase, onSaved, onClose }: {
   lot: Lot; supabase: SupabaseClient; onSaved: () => void; onClose: () => void
 }) {
   const today = new Date().toISOString().slice(0, 10)
-  const [productCode, setProductCode] = useState('D')
+  // Filtre les produits conditionnables par le fruit du lot parent (via la variété).
+  const lotNut = nutOfVariety(lot.variety)
+  const availableProducts = Object.entries(PRODUCT_TYPES).filter(([, pt]) => pt.nut === lotNut)
+  const [productCode, setProductCode] = useState(availableProducts[0]?.[0] || 'D')
   const [form, setForm] = useState({
-    format: '5kg', units_produced: '', total_weight_kg: '',
+    format: availableProducts[0]?.[1].formats[0] || '5kg', units_produced: '', total_weight_kg: '',
     production_date: today, ddm: addDefaultDDM(today), notes: '',
   })
   const [saving, setSaving] = useState(false)
@@ -304,7 +307,7 @@ function ConditioningModal({ lot, supabase, onSaved, onClose }: {
         </div>
         <form onSubmit={submit} className={styles.modalBody}>
           <div className={styles.productTypeGrid}>
-            {Object.entries(PRODUCT_TYPES).map(([code, pt]) => (
+            {availableProducts.map(([code, pt]) => (
               <button key={code} type="button"
                 className={`${styles.productTypeBtn} ${productCode === code ? styles.productTypeBtnActive : ''}`}
                 onClick={() => { setProductCode(code); setFmt(pt.formats[0]) }}>

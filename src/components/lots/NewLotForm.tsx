@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { SupabaseClient } from '@supabase/supabase-js'
 import { Lot } from './LotsView'
-import { VARIETIES, PRODUCERS, PARCEL_VARIETY, generateLotNumber } from './config'
+import { VARIETIES, PRODUCERS, PARCEL_VARIETY, generateLotNumber, nutOfVariety, isSemiFinished } from './config'
 import styles from './Lots.module.css'
 
 interface Props {
@@ -30,6 +30,7 @@ export default function NewLotForm({ supabase, userId, onCreated, onCancel }: Pr
 
   const lotPreview = generateLotNumber(form.harvest_date, form.producer_code, form.parcel, form.variety)
   const hasParcels = PRODUCERS[form.producer_code]?.parcels
+  const semiFinished = isSemiFinished(form.variety)
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -39,15 +40,16 @@ export default function NewLotForm({ supabase, userId, onCreated, onCancel }: Pr
       .from('lots')
       .insert({
         lot_number: lotPreview,
-        species: 'noisette',
+        species: nutOfVariety(form.variety),
         variety: form.variety,
         producer_code: form.producer_code,
         parcel: hasParcels ? form.parcel : null,
         harvest_date: form.harvest_date,
         reception_date: form.reception_date,
         humidity_pct: form.humidity_pct ? parseFloat(form.humidity_pct) : null,
-        status: 'recu',
-        notes: form.notes || null,
+        // Semi-fini (amande/pécan, partenaire) : pas de stades bruts → prêt à conditionner.
+        status: semiFinished ? 'en_transformation' : 'recu',
+        notes: form.notes || (semiFinished ? 'Matière semi-finie (partenaire) — stades bruts non applicables' : null),
         created_by: userId,
       })
       .select('*, lot_stages(*), lot_calibration(*), finished_lots(*)')
@@ -116,6 +118,12 @@ export default function NewLotForm({ supabase, userId, onCreated, onCancel }: Pr
               rows={2} placeholder="Ex: bonne récolte, quelques feuilles…" />
           </div>
         </div>
+
+        {semiFinished && (
+          <p style={{ background: '#eef6f2', border: '0.5px solid #cfe3d8', color: '#0f6e56', borderRadius: 8, padding: '9px 12px', fontSize: 13, margin: '4px 0 0' }}>
+            <i className="ti ti-info-circle" /> Matière <strong>semi-finie</strong> ({nutOfVariety(form.variety) === 'amande' ? 'amande' : 'pécan'}, achetée chez un partenaire) : les stades bruts (lavage / séchage / cassage) ne s&apos;appliquent pas. Le lot sera créé <strong>prêt à conditionner</strong>.
+          </p>
+        )}
 
         {error && <p className={styles.error}><i className="ti ti-alert-circle" /> {error}</p>}
 
