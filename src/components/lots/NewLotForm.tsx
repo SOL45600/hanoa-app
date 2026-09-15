@@ -28,7 +28,7 @@ export default function NewLotForm({ supabase, userId, onCreated, onCancel }: Pr
 
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }))
 
-  const lotPreview = generateLotNumber(form.harvest_date, form.producer_code, form.parcel, form.variety)
+  const lotPreview = generateLotNumber(form.reception_date, form.producer_code, form.parcel, form.variety)
   const hasParcels = PRODUCERS[form.producer_code]?.parcels
   const semiFinished = isSemiFinished(form.variety)
 

@@ -72,7 +72,7 @@ function StatsBar({ lots }: { lots: Lot[] }) {
   )
 }
 
-export default function LotsList({ lots, onSelect }: { lots: Lot[]; onSelect: (l: Lot) => void }) {
+export default function LotsList({ lots, onSelect, onDelete }: { lots: Lot[]; onSelect: (l: Lot) => void; onDelete: (l: Lot) => void }) {
   if (lots.length === 0) {
     return (
       <div className={styles.empty}>
@@ -96,11 +96,12 @@ export default function LotsList({ lots, onSelect }: { lots: Lot[]; onSelect: (l
     const finishedCount = (lot.finished_lots || []).length
 
     return (
-      <button className={styles.lotCard} onClick={() => onSelect(lot)}>
+      <div className={styles.lotCard} role="button" tabIndex={0} style={{ cursor: 'pointer' }}
+        onClick={() => onSelect(lot)}>
         <div className={styles.lotCardLeft}>
           <div className={styles.lotNumber}>{lot.lot_number}</div>
           <div className={styles.lotMeta}>
-            <span><i className="ti ti-calendar" /> {fmtDate(lot.harvest_date)}</span>
+            <span><i className="ti ti-calendar" /> {fmtDate(lot.reception_date || lot.harvest_date)}</span>
             <span><i className="ti ti-plant-2" /> {variety}</span>
             <span><i className="ti ti-map-pin" /> {producer?.label}</span>
             {calibTotal > 0 && <span><i className="ti ti-weight" /> {calibTotal} kg calibré</span>}
@@ -111,9 +112,13 @@ export default function LotsList({ lots, onSelect }: { lots: Lot[]; onSelect: (l
           <span className={styles.statusBadge} style={{ color: st.color, background: st.bg }}>
             {st.label}
           </span>
-          <i className="ti ti-chevron-right" style={{ color: '#ccc', fontSize: 14, marginTop: 6 }} />
+          <button type="button" title="Supprimer le lot"
+            onClick={e => { e.stopPropagation(); onDelete(lot) }}
+            style={{ marginTop: 6, color: '#c0392b', background: 'transparent', border: 'none', cursor: 'pointer', padding: 4 }}>
+            <i className="ti ti-trash" style={{ fontSize: 15 }} />
+          </button>
         </div>
-      </button>
+      </div>
     )
   }
 

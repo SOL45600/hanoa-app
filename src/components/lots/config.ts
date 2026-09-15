@@ -42,6 +42,7 @@ export const STAGES: Record<string, { label: string; icon: string; color: string
   lavage:        { label: 'Lavage',        icon: 'ti-droplet',        color: '#185fa5', fields: ['date', 'notes'] },
   sechage:       { label: 'Séchage',       icon: 'ti-sun',            color: '#ba7517', fields: ['date', 'humidity_out', 'quality_score', 'notes'] },
   calibrage:     { label: 'Calibrage',     icon: 'ti-adjustments',    color: '#0f6e56', fields: ['date', 'calibration', 'notes'] },
+  stockage_coque:{ label: 'Stockage coque', icon: 'ti-archive',       color: '#8a5a2b', fields: ['date', 'weight_in', 'notes'] },
   cassage:       { label: 'Cassage',       icon: 'ti-tool',           color: '#6b4fbb', fields: ['date', 'weight_in', 'weight_out', 'notes'] },
   torreflaction: { label: 'Torréfaction',  icon: 'ti-flame',          color: '#d85a30', fields: ['date', 'weight_in', 'weight_out', 'temperature_c', 'duration_min', 'notes'] },
   presse:        { label: 'Presse',        icon: 'ti-droplet',        color: '#C9A227', fields: ['date', 'weight_in', 'volume_out_l', 'weight_out', 'notes'] },

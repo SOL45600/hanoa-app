@@ -165,6 +165,14 @@ function StageFormModal({ stageType, existingStage, lot, supabase, userId, profi
               </div>
             )}
 
+            {stageType === 'stockage_coque' && (
+              <div className={styles.field}>
+                <label>Poids stocké en coque (kg) — en attente de décorticage</label>
+                <input type="number" step="0.1" value={form.weight_in_kg}
+                  onChange={e => set('weight_in_kg', e.target.value)} placeholder="Ex: 120" />
+              </div>
+            )}
+
             {stageType === 'cassage' && (<>
               <div className={styles.field}>
                 <label>Poids entrée (kg)</label>
@@ -409,7 +417,7 @@ export default function LotDetail({ lot, supabase, userId, profile, onBack, onRe
           {/* Phase 1: Réception → Calibrage */}
           <div className={styles.workflowPhase}>
             <span className={styles.workflowPhaseLabel}>Phase 1 — Préparation</span>
-            {['lavage', 'sechage', 'calibrage'].map(stageType => {
+            {['lavage', 'sechage', 'calibrage', 'stockage_coque'].map(stageType => {
               const stage = stageMap.get(stageType)
               const config = STAGES[stageType]
               const done = !!stage

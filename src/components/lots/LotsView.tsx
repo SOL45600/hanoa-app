@@ -100,6 +100,20 @@ export default function LotsView({ supabase, userId, profile }: Props) {
     }
   }
 
+  const deleteLot = async (lot: Lot) => {
+    const finished = (lot.finished_lots || []).length
+    const warn = finished > 0 ? `\n\n⚠️ Ce lot a ${finished} produit(s) fini(s) qui seront aussi supprimés (stock).` : ''
+    if (!confirm(`Supprimer définitivement le lot ${lot.lot_number} et toutes ses étapes ?${warn}`)) return
+    // Supprime les enfants puis le lot (pas de dépendance à un cascade DB)
+    await supabase.from('finished_lots').delete().eq('parent_lot_id', lot.id)
+    await supabase.from('lot_stages').delete().eq('lot_id', lot.id)
+    await supabase.from('lot_calibration').delete().eq('lot_id', lot.id)
+    const { error } = await supabase.from('lots').delete().eq('id', lot.id)
+    if (error) { alert('Suppression impossible : ' + error.message); return }
+    setLots(ls => ls.filter(l => l.id !== lot.id))
+    if (selectedLot?.id === lot.id) setSelectedLot(null)
+  }
+
   if (selectedLot) {
     return (
       <LotDetail
@@ -142,7 +156,7 @@ export default function LotsView({ supabase, userId, profile }: Props) {
       {loading ? (
         <div className={styles.loading}><i className="ti ti-loader" /> Chargement…</div>
       ) : (
-        <LotsList lots={lots} onSelect={setSelectedLot} />
+        <LotsList lots={lots} onSelect={setSelectedLot} onDelete={deleteLot} />
       )}
     </div>
   )
